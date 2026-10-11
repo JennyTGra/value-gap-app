@@ -1,24 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
+import ValueGapApp from "@/components/ValueGapApp";
 
-// No head() here: the home route inherits title/description/og/twitter from
-// __root.tsx, and ships no og:image so serve-time hosting can inject the
-// project's social preview (explicit og:image or latest screenshot).
 export const Route = createFileRoute("/")({
-  component: Index,
+  head: () => ({
+    meta: [
+      { title: "ValueGap — ett lugnt steg om dagen" },
+      { name: "description", content: "Integritetsfokuserad fokusassistent: två val om dagen mot ditt stora mål. Allt sparas lokalt." },
+      { property: "og:title", content: "ValueGap — ett lugnt steg om dagen" },
+      { property: "og:description", content: "Två val om dagen mot ditt stora mål. Allt sparas lokalt." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: ValueGapApp,
 });
-
-// IMPORTANT: Replace this placeholder. See ./README.md for routing conventions.
-function Index() {
-  return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
-    </div>
-  );
-}
