@@ -105,7 +105,7 @@ const SMALL_STARTS = [
 
 export function minutesFor(bandwidth: number, i: number) {
   const base = bandwidth === 0 ? [15, 20, 25, 30] : bandwidth === 1 ? [45, 60, 75, 90] : [20, 30, 45, 60];
-  return base[i % base.length];
+  return base[i % base.length]!;
 }
 
 export function generateRoadmap(intake: Intake): Phase[] {
@@ -150,7 +150,7 @@ export function nextStreak(streak: number, last: string | null, today: string) {
 export function todaysChoices(roadmap: Phase[], active: number): Task[] {
   const out: Task[] = [];
   for (let i = active; i < roadmap.length && out.length < 2; i++) {
-    for (const t of roadmap[i].tasks) if (!t.done && out.length < 2) out.push(t);
+    for (const t of roadmap[i]!.tasks) if (!t.done && out.length < 2) out.push(t);
   }
   return out;
 }

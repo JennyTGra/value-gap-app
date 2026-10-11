@@ -57,7 +57,7 @@ export default function ValueGapApp() {
         tasks: p.tasks.map((t) => (t.id === current.id ? { ...t, done: true, doneAt: new Date().toISOString() } : t)),
       }));
       let activePhase = d.activePhase;
-      while (activePhase < roadmap.length - 1 && roadmap[activePhase].tasks.every((t) => t.done)) activePhase++;
+      while (activePhase < roadmap.length - 1 && roadmap[activePhase]!.tasks.every((t) => t.done)) activePhase++;
       return { ...d, roadmap, activePhase, streak: nextStreak(d.streak, d.lastDoneDate, today), lastDoneDate: today };
     });
     setScreen("done");
@@ -172,7 +172,7 @@ function IntakeForm({ onDone }: { onDone: (i: Intake) => void }) {
     "Vad brukar skapa motstånd när du genomför stora projekt?",
     "När vill du att detta ska vara i hamn?",
   ];
-  const key = keys[step];
+  const key = keys[step]!;
   const valid = key === "goal" ? (form.goal ?? "").trim().length > 2 : form[key] !== undefined;
   const next = () => (step < 4 ? setStep(step + 1) : onDone(form as Intake));
 
@@ -296,7 +296,7 @@ function Review({ data, setData, onApprove, onBack }: {
   );
 }
 
-function swap<T>(a: T[], i: number, j: number) { const b = [...a]; [b[i], b[j]] = [b[j], b[i]]; return b; }
+function swap<T>(a: T[], i: number, j: number) { const b = [...a]; const t = b[i]!; b[i] = b[j]!; b[j] = t; return b; }
 
 function IconBtn({ children, label, onClick, disabled }: { children: React.ReactNode; label: string; onClick: () => void; disabled?: boolean }) {
   return (

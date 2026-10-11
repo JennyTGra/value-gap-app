@@ -12,7 +12,7 @@ describe("valuegap", () => {
   });
   it("'för stort i huvudet' makes phase 1 tiny", () => {
     const r = generateRoadmap({ ...base, pitfall: 0 });
-    r[0].tasks.forEach((t) => expect(t.minutes).toBe(10));
+    r[0]!.tasks.forEach((t) => expect(t.minutes).toBe(10));
   });
   it("offers exactly two choices", () => {
     expect(todaysChoices(generateRoadmap(base), 0)).toHaveLength(2);
