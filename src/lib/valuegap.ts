@@ -1,156 +1,153 @@
-export type Intake = {
-  goal: string;
-  state: number; // 0..2
-  bandwidth: number; // 0..2
-  pitfall: number; // 0..3
-  timeline: number; // 0..2
-};
-
-export type Task = { id: string; title: string; minutes: number; done?: boolean; doneAt?: string };
+export type Task = { id: string; title: string; minutes: number; done?: boolean; doneAt?: string; deferUntil?: string };
 export type Phase = { id: string; title: string; tasks: Task[] };
 
-export type AppData = {
-  intake: Intake | null;
-  roadmap: Phase[];
-  approved: boolean;
-  activePhase: number;
-  streak: number;
-  lastDoneDate: string | null;
-  scratchpad: string;
+export type Project = {
+  id: string;
+  title: string;
+  dump: string;
+  start: number; // 0 noll/omstart, 1 mitt i, 2 nära mål
+  horizon: number; // 0 sprint, 1 period, 2 öppet
+  modular: boolean;
+  phases: Phase[];
+  paused: boolean;
+  createdAt: string;
 };
 
-export const STORAGE_KEY = "valuegap.v1";
+export type AppState = "INTAKE" | "GATEWAY" | "ACTIVE_FOCUS" | "COMPLETION_REST";
+export type LogStatus = "COMPLETED" | "OTHER_PRIORITIES" | "RECOVERY";
+export type LogEntry = { date: string; status: LogStatus; taskName?: string };
+
+export type AppData = {
+  projects: Project[];
+  activeId: string | null;
+  appState: AppState;
+  historyLog: LogEntry[];
+  scratchpad: string;
+  snoozeUntil: number | null;
+  lastOpenDate: string | null;
+};
+
+export const STORAGE_KEY = "valuegap.v2";
 
 export const emptyData: AppData = {
-  intake: null,
-  roadmap: [],
-  approved: false,
-  activePhase: 0,
-  streak: 0,
-  lastDoneDate: null,
+  projects: [],
+  activeId: null,
+  appState: "INTAKE",
+  historyLog: [],
   scratchpad: "",
+  snoozeUntil: null,
+  lastOpenDate: null,
 };
 
 export const QUESTIONS = {
-  state: ["Bara en idé i huvudet", "Har anteckningar / lös skiss", "Halvfärdigt utkast / prototyp finns"],
-  bandwidth: ["Mikrofokus (15–30 min/dag)", "Ett gediget block (45–90 min/dag)", "Flexibelt / Oregelbundet"],
-  pitfall: [
-    "Det blir för stort och komplext i huvudet",
-    "Jag drunknar i appar och underhåll",
-    "Perfektionism och fastnar i detaljer",
-    "Riktningen tappas bort i vardagens brus",
-  ],
-  timeline: [
-    "Inom 3 månader (snabbt & fokuserat)",
-    "Inom 6–12 månader (tålmodig precision)",
-    "Ingen fast deadline (håll bara riktningen)",
-  ],
+  start: ["Börjar helt från noll / Omstart", "Mitt i – har redan påbörjat", "Nära mållinjen"],
+  horizon: ["Snabb sprint (< 4 veckor)", "Fokuserad period (1–3 månader)", "Utan fast deadline (öppet flöde)"],
+  modular: ["Ja, kan delas i självständiga delar", "Nej, sekventiell kedja"],
 };
 
 const uid = () => Math.random().toString(36).slice(2, 9);
 
-const PHASES: { title: string; tasks: string[] }[] = [
-  {
-    title: "Klarhet",
-    tasks: [
-      "Skriv en mening om varför detta betyder något för dig",
-      "Lista tre saker som måste finnas med i första versionen",
-      "Bestäm vad du medvetet väljer bort",
-      "Beskriv hur 'klart' ser ut i fem meningar",
-    ],
-  },
-  {
-    title: "Skiss",
-    tasks: [
-      "Rita en grov skiss på papper",
-      "Samla dina befintliga anteckningar på ett ställe",
-      "Formulera det första steget en användare tar",
-      "Visa skissen för en person du litar på",
-    ],
-  },
-  {
-    title: "Första versionen",
-    tasks: [
-      "Bygg den minsta fungerande delen",
-      "Koppla ihop två delar så de fungerar tillsammans",
-      "Testa flödet själv från början till slut",
-      "Skriv ner tre saker som skaver",
-    ],
-  },
-  {
-    title: "Förfining",
-    tasks: [
-      "Åtgärda det som skaver mest",
-      "Be två personer prova och lyssna utan att försvara",
-      "Ta bort en funktion som inte behövs",
-      "Putsa texterna så de låter som du",
-    ],
-  },
-  {
-    title: "Lansering",
-    tasks: [
-      "Skriv en kort, ärlig presentation",
-      "Välj en kanal att dela i först",
-      "Publicera — bra nog är bra nog",
-      "Reflektera: vad lärde du dig?",
-    ],
-  },
+const PLANS: { title: string; tasks: string[] }[][] = [
+  [
+    { title: "Klarhet", tasks: ["Skriv en mening om varför detta betyder något", "Lista tre saker som måste finnas med", "Stryk en sak du medvetet väljer bort"] },
+    { title: "Skiss", tasks: ["Rita en grov skiss på ett papper", "Samla lösa anteckningar på ett ställe", "Skriv rubriken på första delen"] },
+    { title: "Bygga", tasks: ["Gör den minsta fungerande biten", "Koppla ihop två delar", "Prova flödet själv en gång"] },
+    { title: "Släppa", tasks: ["Skriv tre ärliga meningar om vad det är", "Visa det för en person", "Notera en sak du lärde dig"] },
+  ],
+  [
+    { title: "Överblick", tasks: ["Öppna det du har och läs igenom i lugn takt", "Markera det som redan fungerar", "Skriv ner nästa naturliga steg"] },
+    { title: "Fördjupa", tasks: ["Arbeta vidare på den svagaste delen", "Ta bort en sak som inte behövs", "Be om en kort reaktion från någon"] },
+    { title: "Färdigställa", tasks: ["Putsa en sektion", "Rätta det som skaver mest", "Läs igenom helheten en gång"] },
+    { title: "Släppa", tasks: ["Välj en kanal att dela i", "Publicera — bra nog är bra nog", "Skriv en tacksam rad till dig själv"] },
+  ],
+  [
+    { title: "Inventera", tasks: ["Lista det som återstår", "Stryk det som inte är nödvändigt", "Välj den viktigaste kvarvarande biten"] },
+    { title: "Slutputs", tasks: ["Gör den sista justeringen", "Kontrollera en detalj", "Läs igenom med nya ögon"] },
+    { title: "Lansera", tasks: ["Förbered en kort presentation", "Dela med en första mottagare", "Publicera"] },
+    { title: "Vila & reflektera", tasks: ["Skriv vad som gick bra", "Notera en lärdom", "Ta en medveten paus"] },
+  ],
 ];
 
-const SMALL_STARTS = [
-  "Öppna ett tomt dokument och skriv målet i en mening",
-  "Sätt en timer på 10 minuter och skriv fritt om idén",
-  "Välj ETT ord som beskriver vad du vill känna när du är klar",
+export const FIRST_STEPS = [
+  "Öppna utkastet och skriv en enda rå rubrik",
+  "Öppna filen och läs bara första stycket",
+  "Skriv ner det enda som återstår, i en mening",
 ];
 
-export function minutesFor(bandwidth: number, i: number) {
-  const base = bandwidth === 0 ? [15, 20, 25, 30] : bandwidth === 1 ? [45, 60, 75, 90] : [20, 30, 45, 60];
-  return base[i % base.length]!;
+export function titleFromDump(dump: string) {
+  const first = dump.trim().split(/[\n.!?]/)[0]?.trim() ?? "";
+  return first.length > 70 ? first.slice(0, 67).trimEnd() + "…" : first || "Mitt projekt";
 }
 
-export function generateRoadmap(intake: Intake): Phase[] {
-  const start = intake.state; // skip phases already behind you
-  const phases = PHASES.slice(Math.min(start, 1)).slice(0, intake.timeline === 0 ? 4 : 5);
-  const perPhase = intake.timeline === 0 ? 3 : 4;
-  return phases.map((p, pi) => {
+export function generatePlan(dump: string, start: number, horizon: number, modular: boolean): Project {
+  const tpl = PLANS[start] ?? PLANS[0]!;
+  const perPhase = horizon === 0 ? 2 : 3;
+  const phases: Phase[] = tpl.map((p, pi) => {
     let titles = p.tasks.slice(0, perPhase);
-    if (pi === 0 && intake.pitfall === 0) titles = [...SMALL_STARTS, ...titles].slice(0, perPhase);
-    if (intake.pitfall === 2 && pi === phases.length - 1) titles[titles.length - 1] = "Släpp det — 80 % räcker gott";
-    return {
-      id: uid(),
-      title: `Fas ${pi + 1} · ${p.title}`,
-      tasks: titles.map((t, ti) => ({
-        id: uid(),
-        title: t,
-        minutes: pi === 0 && intake.pitfall === 0 ? 10 : minutesFor(intake.bandwidth, ti),
-      })),
-    };
+    if (modular && pi === 2) titles = titles.map((t, i) => (i === 0 ? "Välj en självständig del: " + t.toLowerCase() : t));
+    if (pi === 0) titles = [FIRST_STEPS[start] ?? FIRST_STEPS[0]!, ...titles].slice(0, perPhase + 1);
+    return { id: uid(), title: `Fas ${pi + 1} · ${p.title}`, tasks: titles.map((t) => ({ id: uid(), title: t, minutes: 5 })) };
   });
+  return {
+    id: uid(), title: titleFromDump(dump), dump, start, horizon, modular, phases, paused: false,
+    createdAt: new Date().toISOString(),
+  };
 }
 
-export function progress(roadmap: Phase[]) {
-  const all = roadmap.flatMap((p) => p.tasks);
-  if (!all.length) return 0;
-  return Math.round((all.filter((t) => t.done).length / all.length) * 100);
+export function currentPhaseIndex(p: Project) {
+  const i = p.phases.findIndex((ph) => ph.tasks.some((t) => !t.done));
+  return i === -1 ? p.phases.length : i;
+}
+
+/** Strictly max 2 open micro-steps from the current phase, skipping ones moved to a later day. */
+export function todaysChoices(p: Project | undefined, today: string): Task[] {
+  if (!p) return [];
+  const out: Task[] = [];
+  for (const ph of p.phases.slice(currentPhaseIndex(p))) {
+    for (const t of ph.tasks) {
+      if (out.length >= 2) return out;
+      if (!t.done && !(t.deferUntil && t.deferUntil > today)) out.push(t);
+    }
+    if (out.length) return out; // stay within the current phase
+  }
+  return out;
+}
+
+export function openCount(projects: Project[]) {
+  return projects.filter((p) => !p.paused).reduce((n, p) => {
+    const ph = p.phases[currentPhaseIndex(p)];
+    return n + (ph ? ph.tasks.filter((t) => !t.done).length : 0);
+  }, 0);
+}
+
+/** Panikspärren: trigger before a new ambition when ≥2 active projects or >4 open steps. */
+export function shouldTriggerPanic(projects: Project[]) {
+  const active = projects.filter((p) => !p.paused && currentPhaseIndex(p) < p.phases.length);
+  return active.length >= 2 || openCount(active) > 4;
+}
+
+export function phasesActivated(projects: Project[]) {
+  return projects.reduce((n, p) => n + p.phases.filter((ph) => ph.tasks.some((t) => t.done)).length, 0);
 }
 
 export function todayKey(d = new Date()) {
+  const z = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
+  return z.toISOString().slice(0, 10);
+}
+
+function addDays(key: string, n: number) {
+  const d = new Date(key + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
+export { addDays };
 
-/** New streak after completing a task on `today`. */
-export function nextStreak(streak: number, last: string | null, today: string) {
-  if (last === today) return streak;
-  if (!last) return 1;
-  const diff = Math.round((Date.parse(today) - Date.parse(last)) / 86400000);
-  return diff === 1 ? streak + 1 : 1;
-}
-
-/** Up to two open tasks from the active phase (falls forward to next phases). */
-export function todaysChoices(roadmap: Phase[], active: number): Task[] {
-  const out: Task[] = [];
-  for (let i = active; i < roadmap.length && out.length < 2; i++) {
-    for (const t of roadmap[i]!.tasks) if (!t.done && out.length < 2) out.push(t);
+/** Midnight close: every past day since last open without an entry becomes OTHER_PRIORITIES. */
+export function closeDays(log: LogEntry[], lastOpen: string | null, today: string): LogEntry[] {
+  if (!lastOpen || lastOpen >= today) return log;
+  const out = [...log];
+  for (let d = lastOpen; d < today; d = addDays(d, 1)) {
+    if (!out.some((e) => e.date === d)) out.push({ date: d, status: "OTHER_PRIORITIES" });
   }
   return out;
 }
