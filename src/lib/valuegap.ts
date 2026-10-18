@@ -12,7 +12,7 @@ export type Project = {
   paused: boolean;
   createdAt: string;
   deadline?: string | null;
-  budget?: string;
+  budget?: string | undefined;
   context?: string;
 };
 
@@ -26,7 +26,7 @@ export type AppData = {
   appState: AppState;
   historyLog: LogEntry[];
   scratchpad: string;
-  scratchpadBank: { id: string; date: string; text: string; project?: string }[];
+  scratchpadBank: { id: string; date: string; text: string; project?: string | undefined }[];
   ideas: { id: string; text: string; date: string }[];
   snoozeUntil: number | null;
   lastOpenDate: string | null;
