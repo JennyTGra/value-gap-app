@@ -5,8 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-serif: "Playfair Display", Georgia, serif;
-  --font-sans: "Manrope", system-ui, sans-serif;
+  --font-serif: "Roboto", system-ui, sans-serif;
+  --font-sans: "Roboto", system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -36,26 +36,26 @@
 
 :root {
   --radius: 0.875rem;
-  --background: oklch(0.987 0.003 106);
-  --foreground: oklch(0.215 0.004 265);
-  --card: oklch(0.993 0.006 85);
-  --card-foreground: oklch(0.24 0.012 60);
-  --popover: oklch(0.993 0.006 85);
-  --popover-foreground: oklch(0.24 0.012 60);
-  --primary: oklch(0.27 0.012 60);
-  --primary-foreground: oklch(0.975 0.012 85);
-  --secondary: oklch(0.945 0.016 82);
-  --secondary-foreground: oklch(0.3 0.012 60);
-  --muted: oklch(0.95 0.012 82);
-  --muted-foreground: oklch(0.52 0.015 65);
-  --accent: oklch(0.75 0.085 65);
-  --accent-foreground: oklch(0.22 0.02 60);
-  --champagne: oklch(0.92 0.045 82);
+  --background: #EEEFE8;
+  --foreground: #353131;
+  --card: #F5F5F0;
+  --card-foreground: #353131;
+  --popover: #F5F5F0;
+  --popover-foreground: #353131;
+  --primary: #353131;
+  --primary-foreground: #EEEFE8;
+  --secondary: #E6E7DF;
+  --secondary-foreground: #353131;
+  --muted: #E6E7DF;
+  --muted-foreground: #6F6A66;
+  --accent: #E0D3C0;
+  --accent-foreground: #353131;
+  --champagne: #E0D3C0;
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.913 0.007 106);
-  --input: oklch(0.913 0.007 106);
-  --ring: oklch(0.72 0.11 72);
+  --border: #D6D7CE;
+  --input: #D6D7CE;
+  --ring: #C9B79C;
   --shadow-soft: 0 1px 2px oklch(0.3 0.02 60 / 4%), 0 12px 40px -12px oklch(0.3 0.02 60 / 12%);
   --glow: 0 0 0 0 oklch(0.72 0.11 72 / 45%);
 }
@@ -68,7 +68,7 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  h1, h2, h3 { font-family: var(--font-serif); letter-spacing: -0.01em; }
+  h1, h2, h3 { font-family: var(--font-serif); font-weight: 400; letter-spacing: -0.015em; }
 }
 
 @utility shadow-soft { box-shadow: var(--shadow-soft); }
