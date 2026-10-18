@@ -11,6 +11,9 @@ export type Project = {
   phases: Phase[];
   paused: boolean;
   createdAt: string;
+  deadline?: string | null;
+  budget?: string;
+  context?: string;
 };
 
 export type AppState = "INTAKE" | "GATEWAY" | "ACTIVE_FOCUS" | "COMPLETION_REST";
@@ -23,6 +26,8 @@ export type AppData = {
   appState: AppState;
   historyLog: LogEntry[];
   scratchpad: string;
+  scratchpadBank: { id: string; date: string; text: string; project?: string }[];
+  ideas: { id: string; text: string; date: string }[];
   snoozeUntil: number | null;
   lastOpenDate: string | null;
 };
@@ -35,6 +40,8 @@ export const emptyData: AppData = {
   appState: "INTAKE",
   historyLog: [],
   scratchpad: "",
+  scratchpadBank: [],
+  ideas: [],
   snoozeUntil: null,
   lastOpenDate: null,
 };
@@ -42,10 +49,12 @@ export const emptyData: AppData = {
 export const QUESTIONS = {
   start: ["Börjar helt från noll / Omstart", "Mitt i – har redan påbörjat", "Nära mållinjen"],
   horizon: ["Snabb sprint (< 4 veckor)", "Fokuserad period (1–3 månader)", "Utan fast deadline (öppet flöde)"],
-  modular: ["Ja, kan delas i självständiga delar", "Nej, sekventiell kedja"],
+  modular: ["Modulära, självständiga delar", "Sekventiell kedja"],
+  deadline: ["Ja – välj datum", "Nej"],
+  budget: ["Under 2 timmar/vecka", "2–5 timmar/vecka", "5–10 timmar/vecka", "En stund varje dag"],
 };
 
-const uid = () => Math.random().toString(36).slice(2, 9);
+export const uid = () => Math.random().toString(36).slice(2, 9);
 
 const PLANS: { title: string; tasks: string[] }[][] = [
   [
