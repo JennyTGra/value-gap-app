@@ -27,6 +27,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-champagne: var(--champagne);
+  --color-sand-deep: var(--sand-deep);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
@@ -51,6 +52,7 @@
   --accent: #E0D3C0;
   --accent-foreground: #353131;
   --champagne: #E0D3C0;
+  --sand-deep: #9C8463;
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.98 0 0);
   --border: #D6D7CE;
