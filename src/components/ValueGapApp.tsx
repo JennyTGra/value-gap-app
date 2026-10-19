@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight, Check, Clock, Feather, Lock, Sun, Moon, Pause, CalendarArrowUp, Leaf,
-  Plus, PencilLine, RotateCcw, ShieldCheck, X, Play, Coffee, Menu, ArrowUpDown,
-  Lightbulb, FolderOpen, NotebookPen, History, Settings2, Shuffle, Save,
+  Plus, PencilLine, Pencil, RotateCcw, ShieldCheck, X, Play, Coffee, Menu, ArrowUpDown,
+  Lightbulb, FolderOpen, History, Settings2, Shuffle, Save, Target,
 } from "lucide-react";
 import {
   type AppData, type AppState, type Project, type Task, type LogEntry,
   emptyData, STORAGE_KEY, QUESTIONS, generatePlan, todaysChoices, shouldTriggerPanic,
-  phasesActivated, todayKey, addDays, closeDays, currentPhaseIndex, uid,
+  todayKey, addDays, closeDays, currentPhaseIndex, uid,
 } from "@/lib/valuegap";
 
 const card = "rounded-2xl border bg-card shadow-soft";
@@ -25,6 +25,7 @@ export default function ValueGapApp() {
   const [selected, setSelected] = useState<string | null>(null);
   const [panic, setPanic] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuTab, setMenuTab] = useState<Tab | null>(null);
   const [now, setNow] = useState(Date.now());
   const [closed, setClosed] = useState(false);
   const today = todayKey(new Date(now));
@@ -155,6 +156,8 @@ export default function ValueGapApp() {
             onRecovery={() => log({ date: today, status: "RECOVERY" })}
             onSwitch={(id) => { setSelected(null); setData((d) => ({ ...d, activeId: id })); }}
             onNew={newAmbition}
+            onRename={(id, title) => updateTasks((t) => (t.id === id ? { ...t, title } : t))}
+            onOverview={() => { setMenuTab("ambitions"); setMenuOpen(true); }}
           />
         )}
         {data.appState === "ACTIVE_FOCUS" && current && (
@@ -169,22 +172,24 @@ export default function ValueGapApp() {
           />
         )}
         {data.appState === "ACTIVE_FOCUS" && !current && (
-          <p className="text-center text-muted-foreground">Inget mikrosteg är valt just nu.</p>
+          <p className="text-center text-muted-foreground">Inget steg är valt just nu.</p>
         )}
         {data.appState === "COMPLETION_REST" && (
-          <Completion data={data} today={today} onBack={() => go("GATEWAY")} onClose={() => { try { window.close(); } catch {} setClosed(true); }} />
+          <Completion data={data} today={today} onNext={() => go("GATEWAY")} />
         )}
       </main>
 
       {menuOpen && (
         <SideMenu
-          data={data} today={today}
-          onClose={() => setMenuOpen(false)}
+          data={data} today={today} initialTab={menuTab}
+          onClose={() => { setMenuOpen(false); setMenuTab(null); }}
           onNew={newAmbition}
           onPause={(id) => setPaused(id, true)}
           onResume={(id) => { setPaused(id, false); setSelected(null); }}
+          onEdit={(id, patch) => setData((d) => ({ ...d, projects: d.projects.map((p) => (p.id === id ? { ...p, ...patch } : p)) }))}
           onIdea={addIdea}
           onRemoveIdea={(id) => setData((d) => ({ ...d, ideas: d.ideas.filter((i) => i.id !== id) }))}
+          onRemoveNote={(id) => setData((d) => ({ ...d, scratchpadBank: d.scratchpadBank.filter((i) => i.id !== id) }))}
           onState={(s) => { if (s !== "INTAKE" && !data.projects.length) return; go(s); setMenuOpen(false); }}
           onPanic={() => { setMenuOpen(false); setPanic(true); }}
           onNudge={() => { setMenuOpen(false); setData((d) => ({ ...d, snoozeUntil: Date.now() - 1, appState: d.projects.length ? "GATEWAY" : d.appState })); }}
@@ -223,8 +228,16 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
   if (step === "dump") {
     return (
       <section className="animate-fade-up mx-auto max-w-2xl">
-        <p className={eyebrow}>Steg 1 av 3 · Dumpa</p>
-        <h1 className="mt-3 text-3xl sm:text-4xl">Rå hjärndump</h1>
+        <p className={eyebrow}>Steg 1 av 3</p>
+        <h1 className="mt-3 text-3xl sm:text-4xl">Skriv din plan</h1>
+        <ol className="mt-6 grid gap-2 text-sm">
+          {["Skriv en dump för att få ur dig allt.", "Förtydliga målet och varför du vill uppnå det.", "Fortsätt därefter med de förenklade frågorna."].map((s, i) => (
+            <li key={s} className="flex items-start gap-3">
+              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-champagne text-xs font-medium text-accent-foreground">{i + 1}</span>
+              <span className="pt-0.5">{s}</span>
+            </li>
+          ))}
+        </ol>
         <textarea
           autoFocus rows={9} value={dump} onChange={(e) => setDump(e.target.value)}
           placeholder="Dumpa allt som snurrar i huvudet just nu... Skriv helt fritt i 30 sekunder – inga taggar, mappar eller regler."
@@ -300,7 +313,17 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
   return (
     <section className="animate-fade-up">
       <p className={eyebrow}>Din 4-fasplan</p>
-      <h1 className="mt-2 text-3xl sm:text-4xl">{plan.title}</h1>
+      {editing === "title" ? (
+        <input autoFocus defaultValue={plan.title} aria-label="Redigera mål"
+          onBlur={(e) => { if (e.target.value.trim()) setPlan({ ...plan, title: e.target.value.trim() }); setEditing(null); }}
+          onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+          className="mt-2 w-full rounded-lg border bg-background px-3 py-2 text-2xl outline-none focus:ring-2 focus:ring-ring" />
+      ) : (
+        <h1 className="mt-2 flex items-start gap-3 text-3xl sm:text-4xl">
+          <span>{plan.title}</span>
+          <button className="mt-2 inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground" onClick={() => setEditing("title")}><Pencil size={12} /> Redigera</button>
+        </h1>
+      )}
       <p className="mt-2 text-sm text-muted-foreground">
         {plan.budget}{plan.deadline ? ` · Deadline ${fmtDate(plan.deadline)}` : " · Ingen fast deadline"}
       </p>
@@ -321,7 +344,10 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
                       onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
                       className="min-w-0 flex-1 rounded-md border bg-background px-2 py-1 outline-none focus:ring-2 focus:ring-ring" />
                   ) : (
-                    <button className="min-w-0 flex-1 text-left hover:text-muted-foreground" onClick={() => setEditing(t.id)} title="Klicka för att ändra">{t.title}</button>
+                    <>
+                      <span className="min-w-0 flex-1">{t.title}</span>
+                      <button aria-label="Redigera" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={() => setEditing(t.id)}><Pencil size={12} /></button>
+                    </>
                   )}
                 </li>
               ))}
@@ -367,10 +393,12 @@ function Gateway(props: {
   data: AppData; project: Project | undefined; live: Project[]; choices: Task[]; selected: string | null; setSelected: (id: string) => void;
   today: string; now: number; onStart: () => void; onSnooze: () => void; onWake: () => void; onDefer: (days: number) => void;
   onRecovery: () => void; onSwitch: (id: string) => void; onNew: () => void;
+  onRename: (id: string, title: string) => void; onOverview: () => void;
 }) {
   const { data, project, live, choices, selected, setSelected, today, now } = props;
   const [menu, setMenu] = useState(false);
   const [swapped, setSwapped] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
   const restedToday = data.historyLog.some((e) => e.date === today && e.status === "RECOVERY");
   const snoozed = data.snoozeUntil !== null && now < data.snoozeUntil;
   const others = live.filter((p) => p.id !== project?.id);
@@ -390,7 +418,10 @@ function Gateway(props: {
     <section className="animate-fade-up">
       <Sun size={20} className="text-sand-deep" />
       <h1 className="mt-4 max-w-2xl text-2xl leading-snug sm:text-3xl">God morgon. Ditt sinne är lugnt. Här är dagens enda riktning:</h1>
-      <p className="mt-3 text-sm text-muted-foreground">{project.title} · Fas {Math.min(currentPhaseIndex(project) + 1, 4)} av 4</p>
+      <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+        <span>{project.title} · Fas {Math.min(currentPhaseIndex(project) + 1, 4)} av 4</span>
+        <button className="inline-flex items-center gap-1 underline underline-offset-4 hover:text-foreground" onClick={props.onOverview}><Target size={12} /> Ambitionsöversikt</button>
+      </p>
 
       {restedToday ? (
         <div className={`${card} mt-10 p-8 text-center`}>
@@ -408,15 +439,28 @@ function Gateway(props: {
           <div className={`mt-10 grid gap-4 sm:grid-cols-2 transition-opacity duration-700 ${snoozed ? "opacity-50" : ""}`}>
             {ordered.map((t) => {
               const on = selected === t.id;
+              if (editing === t.id) {
+                return (
+                  <div key={t.id} className={`${card} p-6`}>
+                    <input autoFocus defaultValue={t.title} aria-label="Redigera steg"
+                      onBlur={(e) => { if (e.target.value.trim()) props.onRename(t.id, e.target.value.trim()); setEditing(null); }}
+                      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+                      className="w-full rounded-lg border bg-background px-3 py-2 text-lg outline-none focus:ring-2 focus:ring-ring" />
+                  </div>
+                );
+              }
               return (
-                <button key={t.id} onClick={() => setSelected(t.id)}
-                  className={`${card} p-6 text-left transition ${on ? "border-sand-deep ring-2 ring-accent" : "hover:-translate-y-0.5"}`}>
+                <div key={t.id} role="button" tabIndex={0} onClick={() => setSelected(t.id)} onKeyDown={(e) => e.key === "Enter" && setSelected(t.id)}
+                  className={`${card} cursor-pointer p-6 text-left transition ${on ? "border-sand-deep ring-2 ring-accent" : "hover:-translate-y-0.5"}`}>
                   <div className="flex items-center justify-between">
                     <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs text-muted-foreground"><Clock size={11} />&lt; 5 min</span>
-                    <span className={`grid h-5 w-5 place-items-center rounded-full border ${on ? "border-primary bg-primary text-primary-foreground" : ""}`}>{on && <Check size={12} />}</span>
+                    <span className="flex items-center gap-2">
+                      <button aria-label="Redigera" className="text-muted-foreground hover:text-foreground" onClick={(e) => { e.stopPropagation(); setEditing(t.id); }}><Pencil size={13} /></button>
+                      <span className={`grid h-5 w-5 place-items-center rounded-full border ${on ? "border-primary bg-primary text-primary-foreground" : ""}`}>{on && <Check size={12} />}</span>
+                    </span>
                   </div>
                   <p className="mt-4 text-xl leading-snug">{t.title}</p>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -435,8 +479,8 @@ function Gateway(props: {
           ) : (
             <div className="mt-10 grid gap-6 sm:grid-cols-[auto_1fr] sm:items-start">
               <div>
-                <button className={btnPrimary} disabled={!selected} onClick={props.onStart}>Jag vill ta ett mikrosteg! <ArrowRight size={16} /></button>
-                <p className="mt-2 max-w-xs text-xs text-muted-foreground">1 djupt, ostört fokusblock (Rovdjursrytm – pedantisk närvaro).</p>
+                <button className={btnPrimary} disabled={!selected} onClick={props.onStart}>Ta ett första steg <ArrowRight size={16} /></button>
+                <p className="mt-2 max-w-xs text-xs text-muted-foreground">Ett djupt, ostört fokusblock.</p>
               </div>
               <div>
                 <button className={btnGhost} onClick={() => setMenu(!menu)}>Börja när du vill</button>
@@ -511,7 +555,7 @@ function Focus({ task, projectTitle, scratch, setScratch, onSave, onComplete, on
       </div>
       <div className="mt-10 flex flex-wrap justify-center gap-3">
         <button className={btnGhost} onClick={onBack}>Tillbaka</button>
-        <button className={btnPrimary} onClick={onComplete}><Check size={16} /> Slutför mikrosteg</button>
+        <button className={btnPrimary} onClick={onComplete}><Check size={16} /> Slutför steget</button>
       </div>
     </section>
   );
@@ -571,7 +615,7 @@ function RangeToggle({ range, setRange }: { range: 7 | 30; setRange: (r: 7 | 30)
 }
 
 /* ---------------- Screen 4: Avslut ---------------- */
-function Completion({ data, today, onBack, onClose }: { data: AppData; today: string; onBack: () => void; onClose: () => void }) {
+function Completion({ data, today, onNext }: { data: AppData; today: string; onNext: () => void }) {
   const [range, setRange] = useState<7 | 30>(7);
   const started = data.projects.filter((p) => p.phases.some((ph) => ph.tasks.some((t) => t.done))).length;
 
@@ -579,57 +623,105 @@ function Completion({ data, today, onBack, onClose }: { data: AppData; today: st
     <section className="animate-fade-up">
       <div className="text-center">
         <div className="mx-auto h-20 w-20 rounded-full bg-champagne animate-ring" />
-        <h1 className="mx-auto mt-10 max-w-lg text-3xl leading-snug sm:text-4xl">Vackert. Ett mikrosteg närmare verkligheten.</h1>
+        <h1 className="mx-auto mt-10 max-w-lg text-3xl leading-snug sm:text-4xl">Bra gjort! Ett första steg framåt</h1>
+        <button className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-4 hover:text-muted-foreground" onClick={onNext}>
+          Se nästa steg <ArrowRight size={14} />
+        </button>
       </div>
 
-      <div className="mt-14 grid gap-4 sm:grid-cols-2">
-        <div className={`${card} p-6`}>
-          <p className={eyebrow}>Aktiverade planer</p>
-          <p className="mt-3 text-4xl font-light">{started}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{phasesActivated(data.projects)} faser påbörjade eller framskridna</p>
-        </div>
-        <div className={`${card} p-6`}>
-          <p className={eyebrow}>Kognitiv språngbräda</p>
-          <p className="mt-3 text-lg leading-snug">Skärmen kan vila nu. Njut av dagen i den verkliga världen.</p>
-        </div>
+      <div className={`${card} mt-14 p-6`}>
+        <p className={eyebrow}>Aktiverade planer</p>
+        <p className="mt-3 text-4xl font-light">{started}</p>
       </div>
 
       <div className={`${card} mt-4 p-6`}>
         <div className="mb-3 flex items-center justify-between">
-          <p className={eyebrow}>Historik</p>
+          <p className={eyebrow}>Senast gjort</p>
           <RangeToggle range={range} setRange={setRange} />
         </div>
         <HistoryList log={data.historyLog} today={today} range={range} />
-      </div>
-
-      <div className="mt-10 flex flex-wrap justify-center gap-3">
-        <button className={btnGhost} onClick={onBack}>Till morgonvyn</button>
-        <button className={btnPrimary} onClick={onClose}><Moon size={15} /> Stäng appen</button>
       </div>
     </section>
   );
 }
 
+/* ---------------- Ambitionsöversikt ---------------- */
+function progressOf(p: Project) {
+  const all = p.phases.flatMap((ph) => ph.tasks);
+  const done = all.filter((t) => t.done).length;
+  return { done, total: all.length, pct: all.length ? Math.round((done / all.length) * 100) : 0 };
+}
+
+function AmbitionCard({ p, onEdit, onPause, onResume }: {
+  p: Project; onEdit: (patch: Partial<Project>) => void; onPause: () => void; onResume: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [title, setTitle] = useState(p.title);
+  const [deadline, setDeadline] = useState(p.deadline ?? "");
+  const { done, total, pct } = progressOf(p);
+  const fin = isFinished(p);
+  return (
+    <div className="rounded-xl border bg-card p-4 text-sm">
+      {editing ? (
+        <div className="grid gap-2">
+          <input value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Titel"
+            className="rounded-lg border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring" />
+          <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} aria-label="Måldatum"
+            className="rounded-lg border bg-background px-3 py-2 outline-none focus:ring-2 focus:ring-ring" />
+          <div className="flex justify-end gap-3 text-xs">
+            <button className="text-muted-foreground" onClick={() => setEditing(false)}>Avbryt</button>
+            <button className="font-medium underline underline-offset-4" onClick={() => { onEdit({ title: title.trim() || p.title, deadline: deadline || null }); setEditing(false); }}>Spara</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-start justify-between gap-3">
+            <span className="min-w-0 font-medium">{p.title}</span>
+            <button className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground" onClick={() => setEditing(true)}><Pencil size={11} /> Redigera</button>
+          </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {p.deadline ? `Måldatum ${fmtDate(p.deadline)}` : "Inget måldatum"} · {fin ? "Alla faser klara" : `Fas ${currentPhaseIndex(p) + 1} av 4`} · {total - done} steg kvar{p.paused ? " · Vilar" : ""}
+          </p>
+          <div className="mt-3 flex items-center gap-3">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-secondary"><div className="h-full rounded-full bg-sand-deep" style={{ width: `${pct}%` }} /></div>
+            <span className="w-10 text-right text-xs tabular-nums">{pct}%</span>
+          </div>
+          {!fin && (
+            <div className="mt-3 text-right">
+              {p.paused
+                ? <button className="inline-flex items-center gap-1 text-xs underline underline-offset-4" onClick={onResume}><Play size={11} /> Väck</button>
+                : <button className="inline-flex items-center gap-1 text-xs underline underline-offset-4" onClick={onPause}><Pause size={11} /> Vila</button>}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ---------------- Hamburgermeny ---------------- */
-type Tab = "projects" | "ideas" | "notes" | "history" | "settings";
+export type Tab = "ambitions" | "archive" | "history" | "projects" | "settings";
 function SideMenu(props: {
-  data: AppData; today: string; onClose: () => void; onNew: () => void;
-  onPause: (id: string) => void; onResume: (id: string) => void;
-  onIdea: (t: string) => void; onRemoveIdea: (id: string) => void;
+  data: AppData; today: string; initialTab: Tab | null; onClose: () => void; onNew: () => void;
+  onPause: (id: string) => void; onResume: (id: string) => void; onEdit: (id: string, patch: Partial<Project>) => void;
+  onIdea: (t: string) => void; onRemoveIdea: (id: string) => void; onRemoveNote: (id: string) => void;
   onState: (s: AppState) => void; onPanic: () => void; onNudge: () => void; onReset: () => void;
 }) {
   const { data, today } = props;
-  const [tab, setTab] = useState<Tab | null>(null);
+  const [tab, setTab] = useState<Tab | null>(props.initialTab);
   const [idea, setIdea] = useState("");
   const [range, setRange] = useState<7 | 30>(7);
   const active = data.projects.filter((p) => !p.paused && !isFinished(p));
   const resting = data.projects.filter((p) => p.paused);
-  const finished = data.projects.filter((p) => isFinished(p));
+  const archive = [
+    ...data.ideas.map((i) => ({ id: i.id, date: i.date, text: i.text, kind: "Idé" as const, sub: "" })),
+    ...data.scratchpadBank.map((n) => ({ id: n.id, date: n.date, text: n.text, kind: "Tanke" as const, sub: n.project ?? "" })),
+  ].sort((a, b) => (a.date < b.date ? 1 : -1));
   const tabs: [Tab, string, React.ReactNode, number?][] = [
-    ["projects", "Aktiva & vilande projekt", <FolderOpen size={16} />, data.projects.length],
-    ["ideas", "Idébank", <Lightbulb size={16} />, data.ideas.length],
-    ["notes", "Tankeskiss-arkiv", <NotebookPen size={16} />, data.scratchpadBank.length],
-    ["history", "Historik", <History size={16} />],
+    ["ambitions", "Ambitionsöversikt", <Target size={16} />, data.projects.length],
+    ["archive", "Idé- & Tankearkiv", <Lightbulb size={16} />, archive.length],
+    ["history", "Senast gjort", <History size={16} />],
+    ["projects", "Aktiva & vilande projekt", <FolderOpen size={16} />],
     ["settings", "Nollställ & demo", <Settings2 size={16} />],
   ];
   const current = tabs.find((t) => t[0] === tab);
@@ -661,6 +753,14 @@ function SideMenu(props: {
           )}
           {current && <h2 className="mb-5 text-xl">{current[1]}</h2>}
 
+          {tab === "ambitions" && (
+            <div className="grid gap-2">
+              {data.projects.length ? data.projects.map((p) => (
+                <AmbitionCard key={p.id} p={p} onEdit={(patch) => props.onEdit(p.id, patch)} onPause={() => props.onPause(p.id)} onResume={() => props.onResume(p.id)} />
+              )) : <Empty>Inga ambitioner än.</Empty>}
+            </div>
+          )}
+
           {tab === "projects" && (
             <div className="grid gap-6">
               <Group title="Aktiva">
@@ -675,17 +775,12 @@ function SideMenu(props: {
                     action={<button className="inline-flex items-center gap-1 text-xs underline underline-offset-4" onClick={() => props.onResume(p.id)}><Play size={11} /> Väck</button>} />
                 )) : <Empty>Inga vilande projekt.</Empty>}
               </Group>
-              {finished.length > 0 && (
-                <Group title="Slutförda">
-                  {finished.map((p) => <Row key={p.id} title={p.title} sub="Alla fyra faser klara" />)}
-                </Group>
-              )}
             </div>
           )}
 
-          {tab === "ideas" && (
+          {tab === "archive" && (
             <>
-              <p className="text-sm text-muted-foreground">En trygg plats för lösa tankar som inte ska störa morgonvyn.</p>
+              <p className="text-sm text-muted-foreground">Sparade tankeskisser, sidotankar och idéer – samlat på ett ställe.</p>
               <div className="mt-4 flex gap-2">
                 <input value={idea} onChange={(e) => setIdea(e.target.value)} placeholder="Ny idé…"
                   onKeyDown={(e) => { if (e.key === "Enter" && idea.trim()) { props.onIdea(idea.trim()); setIdea(""); } }}
@@ -693,25 +788,17 @@ function SideMenu(props: {
                 <button className={btnGhost + " px-4 py-2.5"} disabled={!idea.trim()} onClick={() => { props.onIdea(idea.trim()); setIdea(""); }}>Spara</button>
               </div>
               <ul className="mt-5 grid gap-2">
-                {data.ideas.length ? data.ideas.map((i) => (
+                {archive.length ? archive.map((i) => (
                   <li key={i.id} className={`${card} flex items-start gap-3 p-4 text-sm`}>
-                    <span className="flex-1">{i.text}</span>
-                    <button aria-label="Ta bort" className="text-muted-foreground hover:text-foreground" onClick={() => props.onRemoveIdea(i.id)}><X size={14} /></button>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs text-muted-foreground">{i.kind} · {i.date === today ? "Idag" : fmtDate(i.date)}{i.sub ? ` · ${i.sub}` : ""}</span>
+                      <span className="mt-1 block whitespace-pre-wrap leading-relaxed">{i.text}</span>
+                    </span>
+                    <button aria-label="Ta bort" className="text-muted-foreground hover:text-foreground" onClick={() => (i.kind === "Idé" ? props.onRemoveIdea(i.id) : props.onRemoveNote(i.id))}><X size={14} /></button>
                   </li>
-                )) : <Empty>Idébanken är tom.</Empty>}
+                )) : <Empty>Arkivet är tomt.</Empty>}
               </ul>
             </>
-          )}
-
-          {tab === "notes" && (
-            <ul className="grid gap-2">
-              {data.scratchpadBank.length ? data.scratchpadBank.map((n) => (
-                <li key={n.id} className={`${card} p-4 text-sm`}>
-                  <p className="text-xs text-muted-foreground">{n.date === today ? "Idag" : fmtDate(n.date)}{n.project ? ` · ${n.project}` : ""}</p>
-                  <p className="mt-2 whitespace-pre-wrap leading-relaxed">{n.text}</p>
-                </li>
-              )) : <Empty>Inga sparade anteckningar än. Tryck "Spara" i Tankeskissen under ett fokuspass.</Empty>}
-            </ul>
           )}
 
           {tab === "history" && (
