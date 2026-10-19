@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, Clock, Pencil, Plus } from "lucide-react";
+import { ArrowLeft, Check, Clock, Menu, Pencil, Plus, Settings } from "lucide-react";
 import { addDays, generatePlan, todayKey, uid, type Phase } from "@/lib/valuegap";
 
 type Plan = {
