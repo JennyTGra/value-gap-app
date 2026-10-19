@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import {
   type AppData, type AppState, type Project, type Task, type LogEntry,
-  emptyData, STORAGE_KEY, QUESTIONS, generatePlan, todaysChoices, shouldTriggerPanic,
+  emptyData, STORAGE_KEY, generatePlan, todaysChoices, shouldTriggerPanic,
   todayKey, addDays, closeDays, currentPhaseIndex, uid,
 } from "@/lib/valuegap";
 
@@ -228,35 +228,38 @@ export default function ValueGapApp() {
 function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Project) => void; canCancel: boolean; onCancel: () => void; onIdea: (t: string) => void }) {
   const [step, setStep] = useState<"dump" | "q" | "context" | "plan">("dump");
   const [dump, setDump] = useState("");
-  const [start, setStart] = useState<number | null>(null);
-  const [horizon, setHorizon] = useState<number | null>(null);
-  const [modular, setModular] = useState<number | null>(null);
-  const [hasDeadline, setHasDeadline] = useState<number | null>(null);
+  const [drive, setDrive] = useState<number | null>(null);
+  const [priority, setPriority] = useState<number | null>(null);
+  const [pitfall, setPitfall] = useState<number | null>(null);
+  const [micro, setMicro] = useState("");
   const [deadline, setDeadline] = useState("");
-  const [budget, setBudget] = useState<number | null>(null);
-  const [context, setContext] = useState("");
-  const [idea, setIdea] = useState("");
-  const [savedIdeas, setSavedIdeas] = useState(0);
   const [plan, setPlan] = useState<Project | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  void onIdea;
+  const DRIVES = [
+    "Lösa egen frustration|Bygga verktyget som saknas",
+    "Skapa en tillgång|Bygga något som ger värde/intäkter",
+    "Stolt hantverk|Bevisa att du kan ta en idé från koncept till färdigt projekt",
+    "Slutföra en surdeg|Få bockat av något som legat och dragit energi",
+  ];
+  const PITFALLS = [
+    "Scope Creep|Projektet sväller och blir oöverskådligt",
+    "Detaljpill|Fastna i småsaker i stället för att färdigställa kärnan",
+    "Tidsbrist|Svårt att hålla uppe tempot vid sidan om",
+    "Osäkerhet / Dåligt självförtroende|Tvekan kring om det håller",
+  ];
+  const plain = (s: string) => s.split("|")[0]!;
 
   if (step === "dump") {
     return (
       <section className="animate-fade-up mx-auto max-w-2xl">
-        <p className={eyebrow}>Steg 1 av 3</p>
-        <h1 className="mt-3 text-3xl sm:text-4xl">Skriv din plan</h1>
-        <ol className="mt-6 grid gap-2 text-sm">
-          {["Skriv en dump för att få ur dig allt.", "Förtydliga målet och varför du vill uppnå det.", "Fortsätt därefter med de förenklade frågorna."].map((s, i) => (
-            <li key={s} className="flex items-start gap-3">
-              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-champagne text-xs font-medium text-accent-foreground">{i + 1}</span>
-              <span className="pt-0.5">{s}</span>
-            </li>
-          ))}
-        </ol>
+        <p className={eyebrow}>Steg 1 av 3 · Projekt & ambition</p>
+        <h1 className="mt-3 text-3xl sm:text-4xl">Skapa din plan</h1>
+        <p className="mt-6 text-lg font-medium">Vad för projekt vill du skapa eller färdigställa?</p>
         <textarea
-          autoFocus rows={9} value={dump} onChange={(e) => setDump(e.target.value)}
-          placeholder="Dumpa allt som snurrar i huvudet just nu... Skriv helt fritt i 30 sekunder – inga taggar, mappar eller regler."
-          className={`${card} mt-8 w-full resize-y p-6 text-base leading-relaxed outline-none focus:ring-2 focus:ring-ring`}
+          autoFocus rows={4} value={dump} onChange={(e) => setDump(e.target.value)}
+          placeholder="t.ex. Genomföra min huvudambition och färdigställa underlaget"
+          className={`${card} mt-6 w-full resize-y p-6 text-base leading-relaxed outline-none focus:ring-2 focus:ring-ring`}
         />
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
           {canCancel ? <button className="text-sm text-muted-foreground" onClick={onCancel}>Avbryt</button> : <span />}
@@ -269,19 +272,29 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
   }
 
   if (step === "q") {
-    const ready = start !== null && horizon !== null && modular !== null && budget !== null && (hasDeadline === 1 || (hasDeadline === 0 && !!deadline));
+    const ready = drive !== null && priority !== null && pitfall !== null;
     return (
       <section className={`${card} animate-fade-up mx-auto max-w-xl p-8 sm:p-10`}>
-        <p className={eyebrow}>Steg 2 av 3 · Fem snabba frågor</p>
-        <Choice label="Var befinner du dig i processen?" options={QUESTIONS.start} value={start} onChange={setStart} />
-        <Choice label="Hur ser tidsramen ut?" options={QUESTIONS.horizon} value={horizon} onChange={setHorizon} />
-        <Choice label="Hur är projektet uppbyggt?" options={QUESTIONS.modular} value={modular} onChange={setModular} />
-        <Choice label="Finns det en fast deadline?" options={QUESTIONS.deadline} value={hasDeadline} onChange={setHasDeadline} />
-        {hasDeadline === 0 && (
-          <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} aria-label="Deadline"
-            className="mt-3 w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
-        )}
-        <Choice label="Hur mycket tid har du?" options={QUESTIONS.budget} value={budget} onChange={setBudget} />
+        <p className={eyebrow}>Steg 2 av 3 · Tre frågor</p>
+        <Choice label="Varför måste det här projektet existera i världen?" options={DRIVES} value={drive} onChange={setDrive} />
+        <fieldset className="mt-8">
+          <legend className="text-lg font-medium">Hur viktigt är det att påbörja eller bli klar med det här projektet?</legend>
+          <div className="mt-3 grid grid-cols-10 gap-1.5">
+            {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+              <button key={n} onClick={() => setPriority(n)}
+                className={`aspect-square rounded-lg border text-sm transition active:scale-[0.96] ${priority === n ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-secondary"}`}>
+                {n}
+              </button>
+            ))}
+          </div>
+          <div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>Inte så viktigt</span><span>Mycket viktigt</span></div>
+          {priority !== null && (
+            <p className="mt-4 animate-fade-up rounded-xl bg-champagne/40 px-4 py-3 text-sm italic">
+              Varför valde du {priority} och inte en 2:a?
+            </p>
+          )}
+        </fieldset>
+        <Choice label="Vad brukar stanna av dina byggen innan mållinjen?" options={PITFALLS} value={pitfall} onChange={setPitfall} />
         <div className="mt-10 flex items-center justify-between">
           <button className="text-sm text-muted-foreground" onClick={() => setStep("dump")}>Tillbaka</button>
           <button className={btnPrimary} disabled={!ready} onClick={() => setStep("context")}>Vidare <ArrowRight size={16} /></button>
@@ -293,28 +306,22 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
   if (step === "context") {
     return (
       <section className="animate-fade-up mx-auto max-w-2xl">
-        <p className={eyebrow}>Steg 3 av 3 · Kontext & material</p>
-        <h1 className="mt-3 text-3xl">Något mer som hör till?</h1>
-        <p className="mt-2 text-sm text-muted-foreground">Lägg till extra kontext, länkar eller anteckningar för projektet (PDF:er, studiematerial, bakgrundsidéer). Helt valfritt.</p>
-        <textarea rows={5} value={context} onChange={(e) => setContext(e.target.value)} placeholder="https://… eller några rader om bakgrunden"
-          className={`${card} mt-6 w-full resize-y p-5 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-ring`} />
-        <div className={`${card} mt-6 p-5`}>
-          <p className="flex items-center gap-2 text-sm font-medium"><Lightbulb size={14} className="text-sand-deep" /> Sidoidé? Lägg den i Idé- &amp; Tankearkivet</p>
-          <div className="mt-3 flex gap-2">
-            <input value={idea} onChange={(e) => setIdea(e.target.value)} placeholder="En tanke som inte hör hemma i planen…"
-              onKeyDown={(e) => { if (e.key === "Enter" && idea.trim()) { onIdea(idea.trim()); setIdea(""); setSavedIdeas((n) => n + 1); } }}
-              className="min-w-0 flex-1 rounded-xl border bg-background px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring" />
-            <button className={btnGhost + " px-4 py-2.5"} disabled={!idea.trim()} onClick={() => { onIdea(idea.trim()); setIdea(""); setSavedIdeas((n) => n + 1); }}>Spara</button>
-          </div>
-          {savedIdeas > 0 && <p className="mt-2 text-xs text-muted-foreground">{savedIdeas} {savedIdeas === 1 ? "idé" : "idéer"} vilar nu tryggt i menyn.</p>}
-        </div>
-        <div className="mt-8 flex items-center justify-between">
+        <p className={eyebrow}>Steg 3 av 3 · Första mikrosteget</p>
+        <h1 className="mt-3 text-3xl">Skriv ett första mikrosteg (&lt; 5 min) för att skapa omedelbart momentum</h1>
+        <input autoFocus value={micro} onChange={(e) => setMicro(e.target.value)} placeholder="t.ex. Skriv en rå rubrik i utkastet"
+          className={`${card} mt-6 w-full p-5 text-base outline-none focus:ring-2 focus:ring-ring`} />
+        <p className="mt-8 text-sm font-medium">Måldatum (Valfritt)</p>
+        <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} aria-label="Måldatum"
+          className="mt-2 rounded-xl border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+        <div className="mt-10 flex items-center justify-between gap-4">
           <button className="text-sm text-muted-foreground" onClick={() => setStep("q")}>Tillbaka</button>
-          <button className={btnPrimary} onClick={() => {
-            const p = generatePlan(dump, start!, horizon!, modular === 0);
-            setPlan({ ...p, deadline: hasDeadline === 0 ? deadline : null, budget: QUESTIONS.budget[budget!], context: context.trim() });
+          <button className={btnPrimary} disabled={!micro.trim()} onClick={() => {
+            const p = generatePlan(dump, 0, 1, pitfall === 0);
+            const phases = p.phases.map((ph, i) => i === 0 ? { ...ph, tasks: [{ ...ph.tasks[0]!, title: micro.trim() }, ...ph.tasks.slice(1)] } : ph);
+            setPlan({ ...p, phases, deadline: deadline || null,
+              context: `Drivkraft: ${plain(DRIVES[drive!]!)} · Prioritet: ${priority}/10 · Fallgrop: ${plain(PITFALLS[pitfall!]!)}` });
             setStep("plan");
-          }}>Skapa din plan <ArrowRight size={16} /></button>
+          }}>Skapa din plan & Se nästa steg <ArrowRight size={16} /></button>
         </div>
       </section>
     );
@@ -395,7 +402,7 @@ function Choice({ label, options, value, onChange }: { label: string; options: s
             <span className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border ${value === i ? "border-primary bg-primary text-primary-foreground" : ""}`}>
               {value === i && <Check size={10} />}
             </span>
-            {opt}
+            <span>{opt.split("|")[0]}{opt.includes("|") && <span className="mt-0.5 block text-xs text-muted-foreground">{opt.split("|")[1]}</span>}</span>
           </button>
         ))}
       </div>
