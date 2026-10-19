@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import AmbitionOverview from "@/components/AmbitionOverview";
 import {
   ArrowRight, Check, Clock, Feather, Lock, Sun, Moon, Pause, CalendarArrowUp, Leaf,
   Plus, PencilLine, Pencil, RotateCcw, ShieldCheck, X, Play, Coffee, Menu, ArrowUpDown,
@@ -28,6 +29,7 @@ export default function ValueGapApp() {
   const [menuTab, setMenuTab] = useState<Tab | null>(null);
   const [now, setNow] = useState(Date.now());
   const [closed, setClosed] = useState(false);
+  const [overviewId, setOverviewId] = useState<string | null>(null);
   const today = todayKey(new Date(now));
 
   useEffect(() => {
@@ -56,6 +58,7 @@ export default function ValueGapApp() {
   const allTasks = data.projects.flatMap((p) => p.phases.flatMap((ph) => ph.tasks));
   const current = allTasks.find((t) => t.id === selected) ?? choices[0] ?? null;
   const currentProject = data.projects.find((p) => p.phases.some((ph) => ph.tasks.some((t) => t.id === current?.id)));
+  const overviewProject = data.projects.find((p) => p.id === overviewId);
   const go = (appState: AppState) => setData((d) => ({ ...d, appState }));
   const nudge = data.snoozeUntil !== null && now >= data.snoozeUntil && data.appState === "GATEWAY";
 
@@ -133,7 +136,18 @@ export default function ValueGapApp() {
       )}
 
       <main className="mx-auto max-w-3xl px-6 pt-12">
-        {data.appState === "INTAKE" && (
+        {overviewProject && (
+          <AmbitionOverview
+            data={data} project={overviewProject} today={today}
+            onBack={() => setOverviewId(null)}
+            onFocus={(id) => { setOverviewId(null); setSelected(id); setData((d) => ({ ...d, activeId: overviewProject.id, appState: "ACTIVE_FOCUS" })); }}
+            onDefer={(id) => updateTasks((t) => (t.id === id ? { ...t, deferUntil: addDays(today, 1) } : t))}
+            onEdit={(patch) => setData((d) => ({ ...d, projects: d.projects.map((p) => (p.id === overviewProject.id ? { ...p, ...patch } : p)) }))}
+            onAddNote={(text) => setData((d) => ({ ...d, scratchpadBank: [{ id: uid(), date: today, text, project: overviewProject.title }, ...d.scratchpadBank] }))}
+            onRemoveNote={(id) => setData((d) => ({ ...d, scratchpadBank: d.scratchpadBank.filter((i) => i.id !== id) }))}
+          />
+        )}
+        {!overviewProject && data.appState === "INTAKE" && (
           <Intake
             canCancel={data.projects.length > 0}
             onCancel={() => go("GATEWAY")}
@@ -141,7 +155,7 @@ export default function ValueGapApp() {
             onApprove={(p) => setData((d) => ({ ...d, projects: [...d.projects, p], activeId: p.id, appState: "GATEWAY" }))}
           />
         )}
-        {data.appState === "GATEWAY" && (
+        {!overviewProject && data.appState === "GATEWAY" && (
           <Gateway
             data={data} project={project} live={live} choices={choices} selected={current?.id ?? null} setSelected={setSelected}
             today={today} now={now}
@@ -160,7 +174,7 @@ export default function ValueGapApp() {
             onOverview={() => { setMenuTab("ambitions"); setMenuOpen(true); }}
           />
         )}
-        {data.appState === "ACTIVE_FOCUS" && current && (
+        {!overviewProject && data.appState === "ACTIVE_FOCUS" && current && (
           <Focus
             task={current} projectTitle={currentProject?.title ?? ""} scratch={data.scratchpad}
             setScratch={(s) => setData((d) => ({ ...d, scratchpad: s }))}
@@ -171,10 +185,10 @@ export default function ValueGapApp() {
             onComplete={complete} onBack={() => go("GATEWAY")}
           />
         )}
-        {data.appState === "ACTIVE_FOCUS" && !current && (
+        {!overviewProject && data.appState === "ACTIVE_FOCUS" && !current && (
           <p className="text-center text-muted-foreground">Inget steg är valt just nu.</p>
         )}
-        {data.appState === "COMPLETION_REST" && (
+        {!overviewProject && data.appState === "COMPLETION_REST" && (
           <Completion data={data} today={today} onNext={() => go("GATEWAY")} />
         )}
       </main>
@@ -183,7 +197,8 @@ export default function ValueGapApp() {
         <SideMenu
           data={data} today={today} initialTab={menuTab}
           onClose={() => { setMenuOpen(false); setMenuTab(null); }}
-          onNew={newAmbition}
+          onNew={() => { setOverviewId(null); newAmbition(); }}
+          onOpen={(id) => { setOverviewId(id); setMenuOpen(false); setMenuTab(null); window.scrollTo(0, 0); }}
           onPause={(id) => setPaused(id, true)}
           onResume={(id) => { setPaused(id, false); setSelected(null); }}
           onEdit={(id, patch) => setData((d) => ({ ...d, projects: d.projects.map((p) => (p.id === id ? { ...p, ...patch } : p)) }))}
@@ -702,7 +717,7 @@ function AmbitionCard({ p, onEdit, onPause, onResume }: {
 /* ---------------- Hamburgermeny ---------------- */
 export type Tab = "ambitions" | "archive" | "history" | "projects" | "settings";
 function SideMenu(props: {
-  data: AppData; today: string; initialTab: Tab | null; onClose: () => void; onNew: () => void;
+  data: AppData; today: string; initialTab: Tab | null; onClose: () => void; onNew: () => void; onOpen: (id: string) => void;
   onPause: (id: string) => void; onResume: (id: string) => void; onEdit: (id: string, patch: Partial<Project>) => void;
   onIdea: (t: string) => void; onRemoveIdea: (id: string) => void; onRemoveNote: (id: string) => void;
   onState: (s: AppState) => void; onPanic: () => void; onNudge: () => void; onReset: () => void;
@@ -756,7 +771,12 @@ function SideMenu(props: {
           {tab === "ambitions" && (
             <div className="grid gap-2">
               {data.projects.length ? data.projects.map((p) => (
-                <AmbitionCard key={p.id} p={p} onEdit={(patch) => props.onEdit(p.id, patch)} onPause={() => props.onPause(p.id)} onResume={() => props.onResume(p.id)} />
+                <div key={p.id} className="grid gap-2">
+                <button onClick={() => props.onOpen(p.id)} className="inline-flex items-center justify-between rounded-xl border bg-card px-4 py-3 text-left text-sm hover:bg-secondary">
+                  <span className="truncate font-medium">{p.title}</span><span className="shrink-0 text-xs text-muted-foreground">Öppna översikt →</span>
+                </button>
+                <AmbitionCard p={p} onEdit={(patch) => props.onEdit(p.id, patch)} onPause={() => props.onPause(p.id)} onResume={() => props.onResume(p.id)} />
+                </div>
               )) : <Empty>Inga ambitioner än.</Empty>}
             </div>
           )}
