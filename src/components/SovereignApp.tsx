@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, ChevronDown, Clock, Pencil, Plus } from "lucide-react";
+import { ArrowLeft, Check, Clock, Menu, Pencil, Plus, Settings } from "lucide-react";
 import { addDays, generatePlan, todayKey, uid, type Phase } from "@/lib/valuegap";
 
 type Plan = {
@@ -23,7 +23,7 @@ const PITFALLS = ["Scope Creep", "Detaljpill", "Tidsbrist", "Osäkerhet / Dålig
 
 const ease = "cubic-bezier(0.16,1,0.3,1)";
 const btn =
-  "bg-primary text-primary-foreground font-medium px-5 py-2.5 rounded-md active:scale-[0.98] transition-transform duration-100 disabled:opacity-40";
+  "bg-primary text-primary-foreground font-medium px-5 py-2.5 rounded-lg active:scale-[0.98] transition-transform duration-100 disabled:opacity-40";
 
 function pct(ph: Phase) {
   return ph.tasks.length ? Math.round((ph.tasks.filter((t) => t.done).length / ph.tasks.length) * 100) : 0;
@@ -83,22 +83,21 @@ export default function SovereignApp() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div
-        className="mx-auto max-w-2xl px-5 py-10 sm:py-14 transition-[opacity,filter] duration-500"
+        className={`mx-auto ${s.plan && view === "dash" ? "max-w-4xl" : "max-w-2xl"} px-5 py-8 sm:py-10 transition-[opacity,filter] duration-500`}
         style={{ opacity: resolved ? 0.35 : 1, filter: resolved ? "blur(1px)" : "none" }}
       >
-        <header className="mb-8 flex items-center justify-between">
-          <span className="text-sm font-medium tracking-wide">ValueGap</span>
-          {s.plan && (
-            <button
-              className="text-sm text-muted-foreground hover:text-foreground hover:underline"
-              onClick={() => {
-                if (confirm("Börja om med en ny plan? Nuvarande plan tas bort.")) setS({ ...s, plan: null });
-              }}
-            >
-              Ny plan
-            </button>
-          )}
-        </header>
+        <TopBar
+          title={s.plan ? "Ambitionsöversikt" : "ValueGap"}
+          onNew={() => {
+            if (confirm("Börja om med en ny plan? Nuvarande plan tas bort.")) setS({ ...s, plan: null });
+          }}
+          onReset={() => {
+            if (confirm("Rensa all data på den här enheten?")) {
+              setS(empty);
+              setView("dash");
+            }
+          }}
+        />
 
         {!s.plan ? (
           <Intake onCreate={(plan) => setS({ ...s, plan })} />
@@ -146,9 +145,13 @@ function Intake({ onCreate }: { onCreate: (p: Plan) => void }) {
 
   const create = () => {
     const base = generatePlan(title, 0, 1, pitfall === "Scope Creep");
-    const phases = base.phases.map((ph, i) =>
-      i === 0 ? { ...ph, tasks: [{ ...ph.tasks[0]!, title: micro.trim() }, ...ph.tasks.slice(1)] } : ph,
-    );
+    const names = ["Planering och avgränsning", "Genomförande", "Utvärdering och justering", "Slutförande och överlämning"];
+    const phases = base.phases.map((ph, i) => {
+      const named = { ...ph, title: `Fas ${i + 1}: ${names[i]}` };
+      return i === 0
+        ? { ...named, tasks: [{ ...ph.tasks[0]!, title: micro.trim() }, ...ph.tasks.slice(1)] }
+        : named;
+    });
     onCreate({ id: uid(), title: title.trim(), drive, priority, pitfall, deadline: "", phases });
   };
 
@@ -341,7 +344,7 @@ function Dashboard({
             </div>
             <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-sand-deep transition-[width] duration-700"
+                className="h-full rounded-full bg-primary transition-[width] duration-700"
                 style={{ width: `${progress}%`, transitionTimingFunction: ease }}
               />
             </div>
@@ -353,16 +356,19 @@ function Dashboard({
           <button className={btn} disabled={!steps[0]} onClick={() => steps[0] && onFocus(steps[0].id)}>
             Se nästa steg
           </button>
-          <span onClick={onResolve} className="ml-4 cursor-pointer text-foreground hover:underline">
+          <span onClick={onResolve} className="ml-4 cursor-pointer font-medium text-foreground hover:underline">
             Avsluta jag är nöjd
           </span>
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wider text-muted-foreground">Nästa steg</h2>
+      <div className="grid gap-6 md:grid-cols-2">
+      <section className="rounded-xl border border-border bg-card p-5">
+        <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Nästa steg (max 2 mikrosteg &lt; 5 min)
+        </h2>
         {steps.length === 0 ? (
-          <p className="rounded-xl border border-border bg-card p-5 text-muted-foreground">
+          <p className="text-muted-foreground">
             {progress === 100 ? "Hela planen är genomförd." : "Inget mer för idag. Vila är också framsteg."}
           </p>
         ) : (
@@ -370,7 +376,7 @@ function Dashboard({
             {steps.map((t, i) => (
               <div
                 key={t.id}
-                className={`rounded-xl border bg-card p-5 ${i === 0 ? "border-accent" : "border-border"}`}
+                className={`rounded-lg border bg-background p-4 ${i === 0 ? "border-accent" : "border-border"}`}
                 style={{
                   transition: `transform 200ms ${ease}, opacity 200ms ${ease}`,
                   transform: leaving === t.id ? "translateY(-12px)" : "none",
@@ -379,14 +385,17 @@ function Dashboard({
               >
                 <p className="font-medium">{t.title}</p>
                 <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" /> under 5 min
+                  <Clock className="h-3 w-3" /> &lt; 5 min · Fas {ai + 1}
                 </p>
-                <div className="mt-4 flex flex-wrap items-center gap-4">
+                <div className="mt-4 flex flex-col items-start gap-2">
                   <button className={btn} onClick={() => onFocus(t.id)}>
                     Jag vill ta ett mikrosteg!
                   </button>
-                  <button className="text-sm hover:underline" onClick={() => later(t.id)}>
-                    Börja senare
+                  <button
+                    className="rounded-lg border border-border px-4 py-2 text-sm active:scale-[0.98] transition-transform duration-100 hover:border-accent"
+                    onClick={() => later(t.id)}
+                  >
+                    Börja senare (skuldfri förskjutning)
                   </button>
                 </div>
               </div>
@@ -396,140 +405,208 @@ function Dashboard({
       </section>
 
       <Notes notes={store.notes} setNotes={setNotes} today={today} />
+      </div>
 
-      <Accordion title="Hela planen (4 faser)" defaultOpen>
+      <section className="rounded-xl border border-border bg-card p-5">
+        <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">Hela planen (4 faser)</h2>
         <div className="space-y-4">
           {plan.phases.map((ph, i) => {
             const v = pct(ph);
-            const status = v === 100 ? "Genomförd" : i === ai ? "Aktiv" : "Planerad";
+            const status = v === 100 ? "Slutförd" : i === ai ? "Aktiv" : "Planerad";
+            const showTasks = v === 100 || i === ai;
             return (
               <div key={ph.id}>
-                <div className="flex justify-between text-sm">
+                <div className="flex items-center justify-between gap-3 text-sm">
                   <span className={i === ai ? "font-medium" : ""}>{ph.title}</span>
-                  <span className="text-muted-foreground">
-                    {status} · {v} %
+                  <span
+                    className={`shrink-0 rounded-md border px-2.5 py-0.5 text-xs ${
+                      i === ai ? "border-accent bg-accent/40" : "border-border text-muted-foreground"
+                    }`}
+                  >
+                    {status} {v}%
                   </span>
                 </div>
-                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full bg-sand-deep transition-[width] duration-500" style={{ width: `${v}%` }} />
-                </div>
-                <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                  {ph.tasks.map((t) => (
-                    <li key={t.id} className={`flex items-center gap-2 ${t.done ? "line-through opacity-70" : ""}`}>
-                      {t.done ? <Check className="h-3.5 w-3.5 text-sand-deep" /> : <span className="h-3.5 w-3.5" />}
-                      {t.title}
-                    </li>
-                  ))}
-                </ul>
+                {showTasks && (
+                  <ul className="mt-2 grid gap-1 pl-4 text-sm text-muted-foreground sm:grid-cols-2">
+                    {ph.tasks.map((t) => (
+                      <li key={t.id} className="flex items-center gap-2">
+                        <span
+                          className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border ${
+                            t.done ? "border-sand-deep" : "border-border"
+                          }`}
+                        >
+                          {t.done && <Check className="h-2.5 w-2.5 text-sand-deep" />}
+                        </span>
+                        {t.title}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             );
           })}
         </div>
-      </Accordion>
+      </section>
 
       <History done={store.done} today={today} />
     </div>
   );
 }
 
-function Accordion({
-  title,
-  defaultOpen = false,
-  children,
-}: {
-  title: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <section className="rounded-xl border border-border bg-card">
-      <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between p-5 text-left">
-        <span className="font-medium">{title}</span>
-        <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
-      </button>
-      <div
-        className="grid transition-[grid-template-rows] duration-300"
-        style={{ gridTemplateRows: open ? "1fr" : "0fr", transitionTimingFunction: ease }}
-      >
-        <div className="overflow-hidden">
-          <div className="px-5 pb-5">{children}</div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function Notes({ notes, setNotes, today }: { notes: Note[]; setNotes: (n: Note[]) => void; today: string }) {
   const [text, setText] = useState("");
+  const [adding, setAdding] = useState(false);
+  const save = () => {
+    if (!text.trim()) return;
+    setNotes([{ id: uid(), text: text.trim(), date: today }, ...notes]);
+    setText("");
+    setAdding(false);
+  };
   return (
-    <Accordion title="Mina anteckningar och idéarkiv">
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={3}
-        placeholder="En tanke, en referens, en idé..."
-        className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 outline-none focus:border-ring"
-      />
-      <button
-        disabled={!text.trim()}
-        onClick={() => {
-          setNotes([{ id: uid(), text: text.trim(), date: today }, ...notes]);
-          setText("");
-        }}
-        className={btn + " mt-2 inline-flex items-center gap-1.5 text-sm"}
-      >
-        <Plus className="h-4 w-4" /> Spara
-      </button>
-      <ul className="mt-4 space-y-2">
+    <section className="rounded-xl border border-border bg-card p-5">
+      <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Mina anteckningar och idéarkiv
+      </h2>
+      <p className="mb-4 text-xs text-muted-foreground">Samlad yta för kontext och tankar</p>
+      {notes.length === 0 && !adding && (
+        <p className="text-sm text-muted-foreground">Här samlas dina tankar, länkar och insikter.</p>
+      )}
+      <ul className="space-y-2 text-sm">
         {notes.map((n) => (
-          <li key={n.id} className="group rounded-md border border-border bg-background p-3 text-sm">
-            <p className="whitespace-pre-wrap">{n.text}</p>
-            <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-              <span>{n.date}</span>
-              <button className="hover:underline" onClick={() => setNotes(notes.filter((x) => x.id !== n.id))}>
+          <li key={n.id} className="group flex gap-2">
+            <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-sand-deep" />
+            <div className="min-w-0 flex-1">
+              <p className="whitespace-pre-wrap break-words">
+                {/^https?:\/\//.test(n.text) ? (
+                  <a href={n.text} target="_blank" rel="noreferrer" className="underline">
+                    {n.text}
+                  </a>
+                ) : (
+                  n.text
+                )}
+              </p>
+              <button
+                className="text-xs text-muted-foreground opacity-0 transition-opacity hover:underline group-hover:opacity-100"
+                onClick={() => setNotes(notes.filter((x) => x.id !== n.id))}
+              >
                 Ta bort
               </button>
             </div>
           </li>
         ))}
       </ul>
-    </Accordion>
+      <div
+        className="grid transition-[grid-template-rows] duration-300"
+        style={{ gridTemplateRows: adding ? "1fr" : "0fr", transitionTimingFunction: ease }}
+      >
+        <div className="overflow-hidden">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={3}
+            placeholder="En tanke, en länk, en insikt..."
+            className="mt-3 w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
+          />
+          <div className="mt-2 flex items-center gap-4">
+            <button disabled={!text.trim()} onClick={save} className={btn + " text-sm"}>
+              Spara
+            </button>
+            <button className="text-sm hover:underline" onClick={() => setAdding(false)}>
+              Avbryt
+            </button>
+          </div>
+        </div>
+      </div>
+      {!adding && (
+        <button
+          onClick={() => setAdding(true)}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm active:scale-[0.98] transition-transform duration-100 hover:border-accent"
+        >
+          <Plus className="h-4 w-4" /> Lägg till ny anteckning/länk
+        </button>
+      )}
+    </section>
   );
+}
+
+function dayLabel(d: string, today: string) {
+  if (d === today) return "Idag";
+  if (d === addDays(today, -1)) return "Igår";
+  return new Date(d + "T12:00:00").toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
 }
 
 function History({ done, today }: { done: Done[]; today: string }) {
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(today, -i)), [today]);
   return (
     <section className="rounded-xl border border-border bg-card p-5">
-      <h2 className="mb-4 font-medium">Senast gjort</h2>
-      <ul className="space-y-3 text-sm">
-        {days.map((d) => {
+      <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Senast gjort (skamfri historik)
+      </h2>
+      <ul className="space-y-2 text-sm">
+        {days.flatMap((d) => {
           const items = done.filter((x) => x.date === d);
-          return (
-            <li key={d} className="flex gap-4 border-b border-border pb-3 last:border-0 last:pb-0">
-              <span className="w-24 shrink-0 text-muted-foreground">{d === today ? "Idag" : d}</span>
-              {items.length ? (
-                <ul className="space-y-1">
-                  {items.map((x) => (
-                    <li key={x.taskId} className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-sand-deep" /> {x.title}
-                    </li>
-                  ))}
-                </ul>
-              ) : d === today ? (
-                <span className="text-muted-foreground">Dagen är fortfarande öppen</span>
-              ) : (
-                <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Andra prioriteringar{" "}
-                  <span className="normal-case tracking-normal">(Planerad återhämtning – bevarade din kognitiva energi)</span>
+          const label = dayLabel(d, today);
+          if (items.length)
+            return items.map((x) => (
+              <li key={x.taskId} className="flex gap-2">
+                <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-sand-deep" />
+                <span>
+                  <span className="font-medium">{label}:</span> Slutförde mikrosteget "{x.title}"
                 </span>
-              )}
-            </li>
-          );
+              </li>
+            ));
+          if (d === today) return [];
+          return [
+            <li key={d} className="flex gap-2 text-muted-foreground">
+              <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-border" />
+              <span>
+                <span className="font-medium text-foreground">{label}:</span> ANDRA PRIORITERINGAR (Planerad
+                återhämtning – bevarade din kognitiva energi)
+              </span>
+            </li>,
+          ];
         })}
       </ul>
     </section>
+  );
+}
+
+function TopBar({ title, onNew, onReset }: { title: string; onNew: () => void; onReset: () => void }) {
+  const [open, setOpen] = useState<"menu" | "settings" | null>(null);
+  const item = "block w-full px-4 py-2 text-left text-sm hover:bg-muted";
+  return (
+    <header className="relative mb-8 flex items-center justify-between border-b border-border pb-4">
+      <button
+        onClick={() => setOpen(open === "menu" ? null : "menu")}
+        className="inline-flex items-center gap-1.5 text-sm hover:underline"
+      >
+        <Menu className="h-4 w-4" /> Meny
+      </button>
+      <span className="text-xs font-medium uppercase tracking-[0.2em]">{title}</span>
+      <button
+        onClick={() => setOpen(open === "settings" ? null : "settings")}
+        className="inline-flex items-center gap-1.5 text-sm hover:underline"
+      >
+        Inställningar <Settings className="h-4 w-4" />
+      </button>
+      {open && (
+        <div
+          className={`absolute top-10 z-20 w-56 overflow-hidden rounded-lg border border-border bg-card py-1 shadow-soft animate-fade-up ${
+            open === "menu" ? "left-0" : "right-0"
+          }`}
+        >
+          {open === "menu" ? (
+            <button className={item} onClick={() => (setOpen(null), onNew())}>
+              Skapa en ny plan
+            </button>
+          ) : (
+            <button className={item} onClick={() => (setOpen(null), onReset())}>
+              Rensa all data
+            </button>
+          )}
+        </div>
+      )}
+    </header>
   );
 }
 
