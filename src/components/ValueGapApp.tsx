@@ -284,7 +284,7 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
         <textarea rows={5} value={context} onChange={(e) => setContext(e.target.value)} placeholder="https://… eller några rader om bakgrunden"
           className={`${card} mt-6 w-full resize-y p-5 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-ring`} />
         <div className={`${card} mt-6 p-5`}>
-          <p className="flex items-center gap-2 text-sm font-medium"><Lightbulb size={14} className="text-sand-deep" /> Sidoidé? Lägg den i Idébanken</p>
+          <p className="flex items-center gap-2 text-sm font-medium"><Lightbulb size={14} className="text-sand-deep" /> Sidoidé? Lägg den i Idé- &amp; Tankearkivet</p>
           <div className="mt-3 flex gap-2">
             <input value={idea} onChange={(e) => setIdea(e.target.value)} placeholder="En tanke som inte hör hemma i planen…"
               onKeyDown={(e) => { if (e.key === "Enter" && idea.trim()) { onIdea(idea.trim()); setIdea(""); setSavedIdeas((n) => n + 1); } }}
