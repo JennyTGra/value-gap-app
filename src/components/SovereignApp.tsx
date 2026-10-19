@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, ChevronDown, Clock, Pencil, Plus } from "lucide-react";
+import { ArrowLeft, Check, Clock, Pencil, Plus } from "lucide-react";
 import { addDays, generatePlan, todayKey, uid, type Phase } from "@/lib/valuegap";
 
 type Plan = {
@@ -450,34 +450,6 @@ function Dashboard({
 
       <History done={store.done} today={today} />
     </div>
-  );
-}
-
-function Accordion({
-  title,
-  defaultOpen = false,
-  children,
-}: {
-  title: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <section className="rounded-xl border border-border bg-card">
-      <button onClick={() => setOpen(!open)} className="flex w-full items-center justify-between p-5 text-left">
-        <span className="font-medium">{title}</span>
-        <ChevronDown className={`h-4 w-4 transition-transform duration-300 ${open ? "rotate-180" : ""}`} />
-      </button>
-      <div
-        className="grid transition-[grid-template-rows] duration-300"
-        style={{ gridTemplateRows: open ? "1fr" : "0fr", transitionTimingFunction: ease }}
-      >
-        <div className="overflow-hidden">
-          <div className="px-5 pb-5">{children}</div>
-        </div>
-      </div>
-    </section>
   );
 }
 
