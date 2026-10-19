@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import ValueGapApp from "@/components/SovereignApp";
+import ValueGapApp from "@/components/ValueGapApp";
 
 export const Route = createFileRoute("/")({
   head: () => ({
