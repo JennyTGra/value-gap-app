@@ -344,7 +344,7 @@ function Dashboard({
             </div>
             <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-muted">
               <div
-                className="h-full rounded-full bg-sand-deep transition-[width] duration-700"
+                className="h-full rounded-full bg-primary transition-[width] duration-700"
                 style={{ width: `${progress}%`, transitionTimingFunction: ease }}
               />
             </div>
