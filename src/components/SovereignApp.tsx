@@ -483,74 +483,158 @@ function Accordion({
 
 function Notes({ notes, setNotes, today }: { notes: Note[]; setNotes: (n: Note[]) => void; today: string }) {
   const [text, setText] = useState("");
+  const [adding, setAdding] = useState(false);
+  const save = () => {
+    if (!text.trim()) return;
+    setNotes([{ id: uid(), text: text.trim(), date: today }, ...notes]);
+    setText("");
+    setAdding(false);
+  };
   return (
-    <Accordion title="Mina anteckningar och idéarkiv">
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        rows={3}
-        placeholder="En tanke, en referens, en idé..."
-        className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 outline-none focus:border-ring"
-      />
-      <button
-        disabled={!text.trim()}
-        onClick={() => {
-          setNotes([{ id: uid(), text: text.trim(), date: today }, ...notes]);
-          setText("");
-        }}
-        className={btn + " mt-2 inline-flex items-center gap-1.5 text-sm"}
-      >
-        <Plus className="h-4 w-4" /> Spara
-      </button>
-      <ul className="mt-4 space-y-2">
+    <section className="rounded-xl border border-border bg-card p-5">
+      <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Mina anteckningar och idéarkiv
+      </h2>
+      <p className="mb-4 text-xs text-muted-foreground">Samlad yta för kontext och tankar</p>
+      {notes.length === 0 && !adding && (
+        <p className="text-sm text-muted-foreground">Här samlas dina tankar, länkar och insikter.</p>
+      )}
+      <ul className="space-y-2 text-sm">
         {notes.map((n) => (
-          <li key={n.id} className="group rounded-md border border-border bg-background p-3 text-sm">
-            <p className="whitespace-pre-wrap">{n.text}</p>
-            <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-              <span>{n.date}</span>
-              <button className="hover:underline" onClick={() => setNotes(notes.filter((x) => x.id !== n.id))}>
+          <li key={n.id} className="group flex gap-2">
+            <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-sand-deep" />
+            <div className="min-w-0 flex-1">
+              <p className="whitespace-pre-wrap break-words">
+                {/^https?:\/\//.test(n.text) ? (
+                  <a href={n.text} target="_blank" rel="noreferrer" className="underline">
+                    {n.text}
+                  </a>
+                ) : (
+                  n.text
+                )}
+              </p>
+              <button
+                className="text-xs text-muted-foreground opacity-0 transition-opacity hover:underline group-hover:opacity-100"
+                onClick={() => setNotes(notes.filter((x) => x.id !== n.id))}
+              >
                 Ta bort
               </button>
             </div>
           </li>
         ))}
       </ul>
-    </Accordion>
+      <div
+        className="grid transition-[grid-template-rows] duration-300"
+        style={{ gridTemplateRows: adding ? "1fr" : "0fr", transitionTimingFunction: ease }}
+      >
+        <div className="overflow-hidden">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={3}
+            placeholder="En tanke, en länk, en insikt..."
+            className="mt-3 w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-ring"
+          />
+          <div className="mt-2 flex items-center gap-4">
+            <button disabled={!text.trim()} onClick={save} className={btn + " text-sm"}>
+              Spara
+            </button>
+            <button className="text-sm hover:underline" onClick={() => setAdding(false)}>
+              Avbryt
+            </button>
+          </div>
+        </div>
+      </div>
+      {!adding && (
+        <button
+          onClick={() => setAdding(true)}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-lg border border-border px-4 py-2 text-sm active:scale-[0.98] transition-transform duration-100 hover:border-accent"
+        >
+          <Plus className="h-4 w-4" /> Lägg till ny anteckning/länk
+        </button>
+      )}
+    </section>
   );
+}
+
+function dayLabel(d: string, today: string) {
+  if (d === today) return "Idag";
+  if (d === addDays(today, -1)) return "Igår";
+  return new Date(d + "T12:00:00").toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
 }
 
 function History({ done, today }: { done: Done[]; today: string }) {
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(today, -i)), [today]);
   return (
     <section className="rounded-xl border border-border bg-card p-5">
-      <h2 className="mb-4 font-medium">Senast gjort</h2>
-      <ul className="space-y-3 text-sm">
-        {days.map((d) => {
+      <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+        Senast gjort (skamfri historik)
+      </h2>
+      <ul className="space-y-2 text-sm">
+        {days.flatMap((d) => {
           const items = done.filter((x) => x.date === d);
-          return (
-            <li key={d} className="flex gap-4 border-b border-border pb-3 last:border-0 last:pb-0">
-              <span className="w-24 shrink-0 text-muted-foreground">{d === today ? "Idag" : d}</span>
-              {items.length ? (
-                <ul className="space-y-1">
-                  {items.map((x) => (
-                    <li key={x.taskId} className="flex items-center gap-2">
-                      <Check className="h-3.5 w-3.5 text-sand-deep" /> {x.title}
-                    </li>
-                  ))}
-                </ul>
-              ) : d === today ? (
-                <span className="text-muted-foreground">Dagen är fortfarande öppen</span>
-              ) : (
-                <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                  Andra prioriteringar{" "}
-                  <span className="normal-case tracking-normal">(Planerad återhämtning – bevarade din kognitiva energi)</span>
+          const label = dayLabel(d, today);
+          if (items.length)
+            return items.map((x) => (
+              <li key={x.taskId} className="flex gap-2">
+                <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-sand-deep" />
+                <span>
+                  <span className="font-medium">{label}:</span> Slutförde mikrosteget "{x.title}"
                 </span>
-              )}
-            </li>
-          );
+              </li>
+            ));
+          if (d === today) return [];
+          return [
+            <li key={d} className="flex gap-2 text-muted-foreground">
+              <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-border" />
+              <span>
+                <span className="font-medium text-foreground">{label}:</span> ANDRA PRIORITERINGAR (Planerad
+                återhämtning – bevarade din kognitiva energi)
+              </span>
+            </li>,
+          ];
         })}
       </ul>
     </section>
+  );
+}
+
+function TopBar({ title, onNew, onReset }: { title: string; onNew: () => void; onReset: () => void }) {
+  const [open, setOpen] = useState<"menu" | "settings" | null>(null);
+  const item = "block w-full px-4 py-2 text-left text-sm hover:bg-muted";
+  return (
+    <header className="relative mb-8 flex items-center justify-between border-b border-border pb-4">
+      <button
+        onClick={() => setOpen(open === "menu" ? null : "menu")}
+        className="inline-flex items-center gap-1.5 text-sm hover:underline"
+      >
+        <Menu className="h-4 w-4" /> Meny
+      </button>
+      <span className="text-xs font-medium uppercase tracking-[0.2em]">{title}</span>
+      <button
+        onClick={() => setOpen(open === "settings" ? null : "settings")}
+        className="inline-flex items-center gap-1.5 text-sm hover:underline"
+      >
+        Inställningar <Settings className="h-4 w-4" />
+      </button>
+      {open && (
+        <div
+          className={`absolute top-10 z-20 w-56 overflow-hidden rounded-lg border border-border bg-card py-1 shadow-soft animate-fade-up ${
+            open === "menu" ? "left-0" : "right-0"
+          }`}
+        >
+          {open === "menu" ? (
+            <button className={item} onClick={() => (setOpen(null), onNew())}>
+              Skapa en ny plan
+            </button>
+          ) : (
+            <button className={item} onClick={() => (setOpen(null), onReset())}>
+              Rensa all data
+            </button>
+          )}
+        </div>
+      )}
+    </header>
   );
 }
 
