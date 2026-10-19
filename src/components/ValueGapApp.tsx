@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import {
   type AppData, type AppState, type Project, type Task, type LogEntry,
-  emptyData, STORAGE_KEY, QUESTIONS, generatePlan, todaysChoices, shouldTriggerPanic,
+  emptyData, STORAGE_KEY, generatePlan, todaysChoices, shouldTriggerPanic,
   todayKey, addDays, closeDays, currentPhaseIndex, uid,
 } from "@/lib/valuegap";
 
