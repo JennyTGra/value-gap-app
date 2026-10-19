@@ -83,22 +83,21 @@ export default function SovereignApp() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div
-        className="mx-auto max-w-2xl px-5 py-10 sm:py-14 transition-[opacity,filter] duration-500"
+        className={`mx-auto ${s.plan && view === "dash" ? "max-w-4xl" : "max-w-2xl"} px-5 py-8 sm:py-10 transition-[opacity,filter] duration-500`}
         style={{ opacity: resolved ? 0.35 : 1, filter: resolved ? "blur(1px)" : "none" }}
       >
-        <header className="mb-8 flex items-center justify-between">
-          <span className="text-sm font-medium tracking-wide">ValueGap</span>
-          {s.plan && (
-            <button
-              className="text-sm text-muted-foreground hover:text-foreground hover:underline"
-              onClick={() => {
-                if (confirm("Börja om med en ny plan? Nuvarande plan tas bort.")) setS({ ...s, plan: null });
-              }}
-            >
-              Ny plan
-            </button>
-          )}
-        </header>
+        <TopBar
+          title={s.plan ? "Ambitionsöversikt" : "ValueGap"}
+          onNew={() => {
+            if (confirm("Börja om med en ny plan? Nuvarande plan tas bort.")) setS({ ...s, plan: null });
+          }}
+          onReset={() => {
+            if (confirm("Rensa all data på den här enheten?")) {
+              setS(empty);
+              setView("dash");
+            }
+          }}
+        />
 
         {!s.plan ? (
           <Intake onCreate={(plan) => setS({ ...s, plan })} />
@@ -146,9 +145,13 @@ function Intake({ onCreate }: { onCreate: (p: Plan) => void }) {
 
   const create = () => {
     const base = generatePlan(title, 0, 1, pitfall === "Scope Creep");
-    const phases = base.phases.map((ph, i) =>
-      i === 0 ? { ...ph, tasks: [{ ...ph.tasks[0]!, title: micro.trim() }, ...ph.tasks.slice(1)] } : ph,
-    );
+    const names = ["Planering och avgränsning", "Genomförande", "Utvärdering och justering", "Slutförande och överlämning"];
+    const phases = base.phases.map((ph, i) => {
+      const named = { ...ph, title: `Fas ${i + 1}: ${names[i]}` };
+      return i === 0
+        ? { ...named, tasks: [{ ...ph.tasks[0]!, title: micro.trim() }, ...ph.tasks.slice(1)] }
+        : named;
+    });
     onCreate({ id: uid(), title: title.trim(), drive, priority, pitfall, deadline: "", phases });
   };
 
@@ -359,10 +362,13 @@ function Dashboard({
         </div>
       </section>
 
-      <section>
-        <h2 className="mb-3 text-sm font-medium uppercase tracking-wider text-muted-foreground">Nästa steg</h2>
+      <div className="grid gap-6 md:grid-cols-2">
+      <section className="rounded-xl border border-border bg-card p-5">
+        <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Nästa steg (max 2 mikrosteg &lt; 5 min)
+        </h2>
         {steps.length === 0 ? (
-          <p className="rounded-xl border border-border bg-card p-5 text-muted-foreground">
+          <p className="text-muted-foreground">
             {progress === 100 ? "Hela planen är genomförd." : "Inget mer för idag. Vila är också framsteg."}
           </p>
         ) : (
@@ -370,7 +376,7 @@ function Dashboard({
             {steps.map((t, i) => (
               <div
                 key={t.id}
-                className={`rounded-xl border bg-card p-5 ${i === 0 ? "border-accent" : "border-border"}`}
+                className={`rounded-lg border bg-background p-4 ${i === 0 ? "border-accent" : "border-border"}`}
                 style={{
                   transition: `transform 200ms ${ease}, opacity 200ms ${ease}`,
                   transform: leaving === t.id ? "translateY(-12px)" : "none",
@@ -379,14 +385,17 @@ function Dashboard({
               >
                 <p className="font-medium">{t.title}</p>
                 <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" /> under 5 min
+                  <Clock className="h-3 w-3" /> &lt; 5 min · Fas {ai + 1}
                 </p>
-                <div className="mt-4 flex flex-wrap items-center gap-4">
+                <div className="mt-4 flex flex-col items-start gap-2">
                   <button className={btn} onClick={() => onFocus(t.id)}>
                     Jag vill ta ett mikrosteg!
                   </button>
-                  <button className="text-sm hover:underline" onClick={() => later(t.id)}>
-                    Börja senare
+                  <button
+                    className="rounded-lg border border-border px-4 py-2 text-sm active:scale-[0.98] transition-transform duration-100 hover:border-accent"
+                    onClick={() => later(t.id)}
+                  >
+                    Börja senare (skuldfri förskjutning)
                   </button>
                 </div>
               </div>
@@ -396,36 +405,48 @@ function Dashboard({
       </section>
 
       <Notes notes={store.notes} setNotes={setNotes} today={today} />
+      </div>
 
-      <Accordion title="Hela planen (4 faser)" defaultOpen>
+      <section className="rounded-xl border border-border bg-card p-5">
+        <h2 className="mb-4 text-xs font-medium uppercase tracking-wider text-muted-foreground">Hela planen (4 faser)</h2>
         <div className="space-y-4">
           {plan.phases.map((ph, i) => {
             const v = pct(ph);
-            const status = v === 100 ? "Genomförd" : i === ai ? "Aktiv" : "Planerad";
+            const status = v === 100 ? "Slutförd" : i === ai ? "Aktiv" : "Planerad";
+            const showTasks = v === 100 || i === ai;
             return (
               <div key={ph.id}>
-                <div className="flex justify-between text-sm">
+                <div className="flex items-center justify-between gap-3 text-sm">
                   <span className={i === ai ? "font-medium" : ""}>{ph.title}</span>
-                  <span className="text-muted-foreground">
-                    {status} · {v} %
+                  <span
+                    className={`shrink-0 rounded-md border px-2.5 py-0.5 text-xs ${
+                      i === ai ? "border-accent bg-accent/40" : "border-border text-muted-foreground"
+                    }`}
+                  >
+                    {status} {v}%
                   </span>
                 </div>
-                <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-muted">
-                  <div className="h-full bg-sand-deep transition-[width] duration-500" style={{ width: `${v}%` }} />
-                </div>
-                <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-                  {ph.tasks.map((t) => (
-                    <li key={t.id} className={`flex items-center gap-2 ${t.done ? "line-through opacity-70" : ""}`}>
-                      {t.done ? <Check className="h-3.5 w-3.5 text-sand-deep" /> : <span className="h-3.5 w-3.5" />}
-                      {t.title}
-                    </li>
-                  ))}
-                </ul>
+                {showTasks && (
+                  <ul className="mt-2 grid gap-1 pl-4 text-sm text-muted-foreground sm:grid-cols-2">
+                    {ph.tasks.map((t) => (
+                      <li key={t.id} className="flex items-center gap-2">
+                        <span
+                          className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-sm border ${
+                            t.done ? "border-sand-deep" : "border-border"
+                          }`}
+                        >
+                          {t.done && <Check className="h-2.5 w-2.5 text-sand-deep" />}
+                        </span>
+                        {t.title}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             );
           })}
         </div>
-      </Accordion>
+      </section>
 
       <History done={store.done} today={today} />
     </div>
