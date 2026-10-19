@@ -23,7 +23,7 @@ const PITFALLS = ["Scope Creep", "Detaljpill", "Tidsbrist", "Osäkerhet / Dålig
 
 const ease = "cubic-bezier(0.16,1,0.3,1)";
 const btn =
-  "bg-primary text-primary-foreground font-medium px-5 py-2.5 rounded-md active:scale-[0.98] transition-transform duration-100 disabled:opacity-40";
+  "bg-primary text-primary-foreground font-medium px-5 py-2.5 rounded-lg active:scale-[0.98] transition-transform duration-100 disabled:opacity-40";
 
 function pct(ph: Phase) {
   return ph.tasks.length ? Math.round((ph.tasks.filter((t) => t.done).length / ph.tasks.length) * 100) : 0;
@@ -356,7 +356,7 @@ function Dashboard({
           <button className={btn} disabled={!steps[0]} onClick={() => steps[0] && onFocus(steps[0].id)}>
             Se nästa steg
           </button>
-          <span onClick={onResolve} className="ml-4 cursor-pointer text-foreground hover:underline">
+          <span onClick={onResolve} className="ml-4 cursor-pointer font-medium text-foreground hover:underline">
             Avsluta jag är nöjd
           </span>
         </div>
