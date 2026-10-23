@@ -4,15 +4,15 @@ export type Ambition = {
   id: string;
   title: string;
   dump: string;
-  context?: string;
-  deadline?: string | null;
-  budget?: string;
+  context?: string | undefined;
+  deadline?: string | null | undefined;
+  budget?: string | undefined;
   paused: boolean;
   createdAt: string;
-  start?: number;
-  horizon?: number;
-  modular?: boolean;
-  order?: number;
+  start?: number | undefined;
+  horizon?: number | undefined;
+  modular?: boolean | undefined;
+  order?: number | undefined;
 };
 
 export type DbPhase = { id: string; ambitionId: string; title: string; order: number };
@@ -25,18 +25,18 @@ export type MicroStep = {
   minutes: number;
   order: number;
   done: 0 | 1;
-  doneAt?: string;
-  deferUntil?: string;
+  doneAt?: string | undefined;
+  deferUntil?: string | undefined;
 };
 
-export type Note = { id: string; ambitionId?: string; project?: string; text: string; date: string; kind: "note" | "idea"; order?: number };
+export type Note = { id: string; ambitionId?: string | undefined; project?: string | undefined; text: string; date: string; kind: "note" | "idea"; order?: number | undefined };
 
 export type HistoryEntry = {
-  id?: number;
+  id?: number | undefined;
   date: string;
   status: "COMPLETED" | "OTHER_PRIORITIES" | "RECOVERY";
-  ambitionId?: string;
-  taskName?: string;
+  ambitionId?: string | undefined;
+  taskName?: string | undefined;
 };
 
 export type Meta = { key: string; value: unknown };
