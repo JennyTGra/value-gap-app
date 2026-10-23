@@ -23,7 +23,7 @@ export async function loadAppData(): Promise<AppData> {
   ]);
   const m = Object.fromEntries(meta.map((r) => [r.key, r.value]));
 
-  const projects: Project[] = ambitions
+  const projects = ambitions
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
     .map((a) => ({
       id: a.id, title: a.title, dump: a.dump, start: a.start ?? 0, horizon: a.horizon ?? 1,
@@ -35,10 +35,10 @@ export async function loadAppData(): Promise<AppData> {
           id: s.id, title: s.title, minutes: s.minutes, done: s.done === 1, doneAt: s.doneAt, deferUntil: s.deferUntil,
         })),
       })),
-    }));
+    })) as unknown as Project[];
 
   const byOrder = (x: Note, y: Note) => (x.order ?? 0) - (y.order ?? 0);
-  return {
+  return clean({
     ...emptyData,
     projects,
     activeId: (m.activeId as string | null) ?? null,
@@ -49,8 +49,10 @@ export async function loadAppData(): Promise<AppData> {
     historyLog: history.map((h) => ({ date: h.date, status: h.status, taskName: h.taskName })),
     ideas: notes.filter((n) => n.kind === "idea").sort(byOrder).map((n) => ({ id: n.id, text: n.text, date: n.date })),
     scratchpadBank: notes.filter((n) => n.kind === "note").sort(byOrder).map((n) => ({ id: n.id, text: n.text, date: n.date, project: n.project })),
-  };
+  }) as AppData;
 }
+
+const clean = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 
 /** Persist the full app state into the IndexedDB tables in one transaction. */
 export async function saveAppData(d: AppData): Promise<void> {
@@ -77,11 +79,12 @@ export async function saveAppData(d: AppData): Promise<void> {
   ];
   const history: HistoryEntry[] = d.historyLog.map((h) => ({ date: h.date, status: h.status, taskName: h.taskName }));
 
+  const [A, P, S, N, H] = clean([ambitions, phases, steps, notes, history] as const);
   await db.transaction("rw", [db.ambitions, db.phases, db.micro_steps, db.notes, db.history, db.meta], async () => {
     await Promise.all([db.ambitions.clear(), db.phases.clear(), db.micro_steps.clear(), db.notes.clear(), db.history.clear()]);
     await Promise.all([
-      db.ambitions.bulkPut(ambitions), db.phases.bulkPut(phases), db.micro_steps.bulkPut(steps),
-      db.notes.bulkPut(notes), db.history.bulkAdd(history),
+      db.ambitions.bulkPut(A), db.phases.bulkPut(P), db.micro_steps.bulkPut(S),
+      db.notes.bulkPut(N), db.history.bulkAdd(H),
       db.meta.bulkPut(META_KEYS.map((k) => ({ key: k, value: d[k] }))),
     ]);
   });
