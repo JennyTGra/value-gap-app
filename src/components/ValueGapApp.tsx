@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { loadAppData, saveAppData } from "@/lib/dbSync";
 import AmbitionOverview from "@/components/AmbitionOverview";
 import {
   ArrowRight, Check, Clock, Feather, Lock, Sun, Moon, Pause, CalendarArrowUp, Leaf,
@@ -7,7 +8,7 @@ import {
 } from "lucide-react";
 import {
   type AppData, type AppState, type Project, type Task, type LogEntry,
-  emptyData, STORAGE_KEY, generatePlan, todaysChoices, shouldTriggerPanic,
+  emptyData, generatePlan, todaysChoices, shouldTriggerPanic,
   todayKey, addDays, closeDays, currentPhaseIndex, uid,
 } from "@/lib/valuegap";
 
@@ -33,19 +34,19 @@ export default function ValueGapApp() {
   const today = todayKey(new Date(now));
 
   useEffect(() => {
-    let d = emptyData;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) d = { ...emptyData, ...JSON.parse(raw) };
-    } catch {}
-    const t = todayKey();
-    d = { ...d, historyLog: closeDays(d.historyLog, d.lastOpenDate, t), lastOpenDate: t };
-    if (!d.projects.length) d.appState = "INTAKE";
-    setData(d);
-    setLoaded(true);
+    let alive = true;
+    loadAppData().catch(() => emptyData).then((loadedData) => {
+      if (!alive) return;
+      const t = todayKey();
+      const d = { ...loadedData, historyLog: closeDays(loadedData.historyLog, loadedData.lastOpenDate, t), lastOpenDate: t };
+      if (!d.projects.length) d.appState = "INTAKE";
+      setData(d);
+      setLoaded(true);
+    });
+    return () => { alive = false; };
   }, []);
 
-  useEffect(() => { if (loaded) localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }, [data, loaded]);
+  useEffect(() => { if (loaded) void saveAppData(data); }, [data, loaded]);
   useEffect(() => { const i = setInterval(() => setNow(Date.now()), 15000); return () => clearInterval(i); }, []);
   useEffect(() => {
     if (!loaded || data.lastOpenDate === today) return;
@@ -87,7 +88,6 @@ export default function ValueGapApp() {
   const addIdea = (text: string) => setData((d) => ({ ...d, ideas: [{ id: uid(), text, date: today }, ...d.ideas] }));
 
   const reset = () => {
-    localStorage.removeItem(STORAGE_KEY);
     setData({ ...emptyData, lastOpenDate: todayKey() });
     setSelected(null); setPanic(false); setClosed(false); setMenuOpen(false);
   };
