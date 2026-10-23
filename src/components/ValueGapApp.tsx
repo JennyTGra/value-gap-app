@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { loadAppData, saveAppData } from "@/lib/dbSync";
 import AmbitionOverview from "@/components/AmbitionOverview";
 import {
   ArrowRight, Check, Clock, Feather, Lock, Sun, Moon, Pause, CalendarArrowUp, Leaf,
@@ -7,7 +8,7 @@ import {
 } from "lucide-react";
 import {
   type AppData, type AppState, type Project, type Task, type LogEntry,
-  emptyData, STORAGE_KEY, generatePlan, todaysChoices, shouldTriggerPanic,
+  emptyData, generatePlan, todaysChoices, shouldTriggerPanic,
   todayKey, addDays, closeDays, currentPhaseIndex, uid,
 } from "@/lib/valuegap";
 
@@ -87,7 +88,6 @@ export default function ValueGapApp() {
   const addIdea = (text: string) => setData((d) => ({ ...d, ideas: [{ id: uid(), text, date: today }, ...d.ideas] }));
 
   const reset = () => {
-    localStorage.removeItem(STORAGE_KEY);
     setData({ ...emptyData, lastOpenDate: todayKey() });
     setSelected(null); setPanic(false); setClosed(false); setMenuOpen(false);
   };
