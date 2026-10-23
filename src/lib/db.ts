@@ -9,6 +9,10 @@ export type Ambition = {
   budget?: string;
   paused: boolean;
   createdAt: string;
+  start?: number;
+  horizon?: number;
+  modular?: boolean;
+  order?: number;
 };
 
 export type DbPhase = { id: string; ambitionId: string; title: string; order: number };
@@ -25,7 +29,7 @@ export type MicroStep = {
   deferUntil?: string;
 };
 
-export type Note = { id: string; ambitionId?: string; text: string; date: string; kind: "note" | "idea" };
+export type Note = { id: string; ambitionId?: string; project?: string; text: string; date: string; kind: "note" | "idea"; order?: number };
 
 export type HistoryEntry = {
   id?: number;
@@ -35,6 +39,8 @@ export type HistoryEntry = {
   taskName?: string;
 };
 
+export type Meta = { key: string; value: unknown };
+
 /** Local-only IndexedDB store. Browser-only: only use inside effects, handlers or useLiveQuery. */
 export const db = new Dexie("valuegap") as Dexie & {
   ambitions: EntityTable<Ambition, "id">;
@@ -42,6 +48,7 @@ export const db = new Dexie("valuegap") as Dexie & {
   micro_steps: EntityTable<MicroStep, "id">;
   notes: EntityTable<Note, "id">;
   history: EntityTable<HistoryEntry, "id">;
+  meta: EntityTable<Meta, "key">;
 };
 
 db.version(1).stores({
@@ -51,3 +58,5 @@ db.version(1).stores({
   notes: "id, ambitionId, date, kind",
   history: "++id, date, status, ambitionId",
 });
+
+db.version(2).stores({ meta: "key" });
