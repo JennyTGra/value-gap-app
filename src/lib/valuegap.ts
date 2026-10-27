@@ -18,7 +18,7 @@ export type Project = {
 
 export type AppState = "INTAKE" | "GATEWAY" | "ACTIVE_FOCUS" | "COMPLETION_REST";
 export type LogStatus = "COMPLETED" | "OTHER_PRIORITIES" | "RECOVERY";
-export type LogEntry = { date: string; status: LogStatus; taskName?: string; ambitionId?: string };
+export type LogEntry = { date: string; status: LogStatus; taskName?: string; ambitionId?: string | undefined };
 
 export type AppData = {
   projects: Project[];
