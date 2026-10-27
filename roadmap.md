@@ -1,0 +1,5 @@
+- [ ] Tydliga val efter planskapande och kompakt morgonvy.
+- [ ] Parkera, återuppta och fortsätta fokuspass efter fem minuter.
+- [ ] Projektspecifik reflektion och avslut av loopen.
+- [ ] Kompakt ambitionsöversikt och genvägar i toppmenyn.
+- [ ] Kontrollera lagring, tester och hela användarflödet.
