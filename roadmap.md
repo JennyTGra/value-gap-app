@@ -1,5 +1,5 @@
-- [ ] Tydliga val efter planskapande och kompakt morgonvy.
-- [ ] Parkera, återuppta och fortsätta fokuspass efter fem minuter.
-- [ ] Projektspecifik reflektion och avslut av loopen.
-- [ ] Kompakt ambitionsöversikt och genvägar i toppmenyn.
-- [ ] Kontrollera lagring, tester och hela användarflödet.
+- [x] Tydliga val efter planskapande och kompakt morgonvy.
+- [x] Parkera, återuppta och fortsätta fokuspass efter fem minuter.
+- [x] Projektspecifik reflektion och avslut av loopen.
+- [x] Kompakt ambitionsöversikt och genvägar i toppmenyn.
+- [x] Kontrollera lagring, tester och hela användarflödet.
