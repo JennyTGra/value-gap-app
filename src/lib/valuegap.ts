@@ -1,4 +1,4 @@
-export type Task = { id: string; title: string; minutes: number; done?: boolean; doneAt?: string; deferUntil?: string };
+export type Task = { id: string; title: string; minutes: number; done?: boolean; doneAt?: string; deferUntil?: string; started?: boolean; resumeNote?: string };
 export type Phase = { id: string; title: string; tasks: Task[] };
 
 export type Project = {
@@ -18,7 +18,7 @@ export type Project = {
 
 export type AppState = "INTAKE" | "GATEWAY" | "ACTIVE_FOCUS" | "COMPLETION_REST";
 export type LogStatus = "COMPLETED" | "OTHER_PRIORITIES" | "RECOVERY";
-export type LogEntry = { date: string; status: LogStatus; taskName?: string };
+export type LogEntry = { date: string; status: LogStatus; taskName?: string; ambitionId?: string };
 
 export type AppData = {
   projects: Project[];
@@ -26,10 +26,12 @@ export type AppData = {
   appState: AppState;
   historyLog: LogEntry[];
   scratchpad: string;
-  scratchpadBank: { id: string; date: string; text: string; project?: string | undefined }[];
+  scratchpadBank: { id: string; date: string; text: string; project?: string | undefined; ambitionId?: string | undefined }[];
   ideas: { id: string; text: string; date: string }[];
   snoozeUntil: number | null;
   lastOpenDate: string | null;
+  focusTaskId: string | null;
+  completionProjectId: string | null;
 };
 
 export const STORAGE_KEY = "valuegap.v2";
@@ -44,6 +46,8 @@ export const emptyData: AppData = {
   ideas: [],
   snoozeUntil: null,
   lastOpenDate: null,
+  focusTaskId: null,
+  completionProjectId: null,
 };
 
 export const QUESTIONS = {
@@ -89,12 +93,12 @@ export function titleFromDump(dump: string) {
 }
 
 export function generatePlan(dump: string, start: number, horizon: number, modular: boolean): Project {
-  const tpl = PLANS[start] ?? PLANS[0]!;
+   const tpl = PLANS[start] ?? PLANS[0] ?? [];
   const perPhase = horizon === 0 ? 2 : 3;
   const phases: Phase[] = tpl.map((p, pi) => {
     let titles = p.tasks.slice(0, perPhase);
     if (modular && pi === 2) titles = titles.map((t, i) => (i === 0 ? "Välj en självständig del: " + t.toLowerCase() : t));
-    if (pi === 0) titles = [FIRST_STEPS[start] ?? FIRST_STEPS[0]!, ...titles].slice(0, perPhase + 1);
+    if (pi === 0) titles = [FIRST_STEPS[start] ?? FIRST_STEPS[0] ?? "Skriv en rubrik", ...titles].slice(0, perPhase + 1);
     return { id: uid(), title: `Fas ${pi + 1} · ${p.title}`, tasks: titles.map((t) => ({ id: uid(), title: t, minutes: 5 })) };
   });
   return {
@@ -106,6 +110,20 @@ export function generatePlan(dump: string, start: number, horizon: number, modul
 export function currentPhaseIndex(p: Project) {
   const i = p.phases.findIndex((ph) => ph.tasks.some((t) => !t.done));
   return i === -1 ? p.phases.length : i;
+}
+
+export function parkTask(task: Task, note: string): Task {
+  return { ...task, started: true, resumeNote: note.trim(), done: false };
+}
+
+export function finishTask(task: Task, doneAt: string): Task {
+  return { ...task, done: true, doneAt, started: false, resumeNote: "" };
+}
+
+export function addReflection(data: AppData, ambitionId: string | null, text: string, date: string): AppData {
+  const project = data.projects.find((p) => p.id === ambitionId);
+  if (!project || !text.trim()) return data;
+  return { ...data, scratchpadBank: [{ id: uid(), date, text: text.trim(), ambitionId: project.id, project: project.title }, ...data.scratchpadBank] };
 }
 
 /** Strictly max 2 open micro-steps from the current phase, skipping ones moved to a later day. */
