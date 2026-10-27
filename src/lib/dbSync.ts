@@ -1,7 +1,7 @@
 import { db, type Ambition, type DbPhase, type MicroStep, type Note, type HistoryEntry } from "./db";
 import { emptyData, STORAGE_KEY, type AppData, type Project } from "./valuegap";
 
-const META_KEYS = ["activeId", "appState", "scratchpad", "snoozeUntil", "lastOpenDate"] as const;
+const META_KEYS = ["activeId", "appState", "scratchpad", "snoozeUntil", "lastOpenDate", "focusTaskId", "completionProjectId"] as const;
 
 /** Load app data from IndexedDB; on first run, migrate from the old localStorage blob. */
 export async function loadAppData(): Promise<AppData> {
@@ -32,7 +32,7 @@ export async function loadAppData(): Promise<AppData> {
       phases: phases.filter((p) => p.ambitionId === a.id).sort((x, y) => x.order - y.order).map((p) => ({
         id: p.id, title: p.title,
         tasks: steps.filter((s) => s.phaseId === p.id).sort((x, y) => x.order - y.order).map((s) => ({
-          id: s.id, title: s.title, minutes: s.minutes, done: s.done === 1, doneAt: s.doneAt, deferUntil: s.deferUntil,
+          id: s.id, title: s.title, minutes: s.minutes, done: s.done === 1, doneAt: s.doneAt, deferUntil: s.deferUntil, started: s.started, resumeNote: s.resumeNote,
         })),
       })),
     })) as unknown as Project[];
@@ -46,9 +46,11 @@ export async function loadAppData(): Promise<AppData> {
     scratchpad: (m["scratchpad"] as string) ?? "",
     snoozeUntil: (m["snoozeUntil"] as number | null) ?? null,
     lastOpenDate: (m["lastOpenDate"] as string | null) ?? null,
-    historyLog: history.map((h) => ({ date: h.date, status: h.status, taskName: h.taskName })),
+    focusTaskId: (m["focusTaskId"] as string | null) ?? null,
+    completionProjectId: (m["completionProjectId"] as string | null) ?? null,
+    historyLog: history.map((h) => ({ date: h.date, status: h.status, taskName: h.taskName, ambitionId: h.ambitionId })),
     ideas: notes.filter((n) => n.kind === "idea").sort(byOrder).map((n) => ({ id: n.id, text: n.text, date: n.date })),
-    scratchpadBank: notes.filter((n) => n.kind === "note").sort(byOrder).map((n) => ({ id: n.id, text: n.text, date: n.date, project: n.project })),
+    scratchpadBank: notes.filter((n) => n.kind === "note").sort(byOrder).map((n) => ({ id: n.id, text: n.text, date: n.date, project: n.project, ambitionId: n.ambitionId })),
   }) as AppData;
 }
 
@@ -66,7 +68,7 @@ export async function saveAppData(d: AppData): Promise<void> {
       phases.push({ id: ph.id, ambitionId: p.id, title: ph.title, order: i });
       ph.tasks.forEach((t, j) => steps.push({
         id: t.id, ambitionId: p.id, phaseId: ph.id, title: t.title, minutes: t.minutes, order: j,
-        done: t.done ? 1 : 0, doneAt: t.doneAt, deferUntil: t.deferUntil,
+        done: t.done ? 1 : 0, doneAt: t.doneAt, deferUntil: t.deferUntil, started: t.started, resumeNote: t.resumeNote,
       }));
     });
   });
@@ -74,10 +76,10 @@ export async function saveAppData(d: AppData): Promise<void> {
     ...d.ideas.map((n, i): Note => ({ id: n.id, text: n.text, date: n.date, kind: "idea", order: i })),
     ...d.scratchpadBank.map((n, i): Note => ({
       id: n.id, text: n.text, date: n.date, project: n.project, kind: "note", order: i,
-      ambitionId: d.projects.find((p) => p.title === n.project)?.id,
+      ambitionId: n.ambitionId ?? d.projects.find((p) => p.title === n.project)?.id,
     })),
   ];
-  const history: HistoryEntry[] = d.historyLog.map((h) => ({ date: h.date, status: h.status, taskName: h.taskName }));
+  const history: HistoryEntry[] = d.historyLog.map((h) => ({ date: h.date, status: h.status, taskName: h.taskName, ambitionId: h.ambitionId }));
 
   const [A, P, S, N, H] = clean([ambitions, phases, steps, notes, history] as const);
   await db.transaction("rw", [db.ambitions, db.phases, db.micro_steps, db.notes, db.history, db.meta], async () => {

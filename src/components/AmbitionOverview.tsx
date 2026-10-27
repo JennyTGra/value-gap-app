@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { ArrowLeft, Check, Clock, Pencil, Plus } from "lucide-react";
 import { addDays, currentPhaseIndex, todaysChoices, type AppData, type Project, type Phase } from "@/lib/valuegap";
 
@@ -33,40 +34,28 @@ export default function AmbitionOverview(props: {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(p.title);
   const [deadline, setDeadline] = useState(p.deadline ?? "");
-  const [leaving, setLeaving] = useState<string | null>(null);
   const [resolved, setResolved] = useState(false);
   const steps = todaysChoices(p, today);
   const ai = Math.min(currentPhaseIndex(p), p.phases.length - 1);
   const progress = totalPct(p);
   const taskNames = new Set(p.phases.flatMap((ph) => ph.tasks.map((t) => t.title)));
-  const wins = data.historyLog.filter((e) => e.date === today && e.status === "COMPLETED" && e.taskName && taskNames.has(e.taskName));
+  const wins = data.historyLog.filter((e) => e.date === today && e.status === "COMPLETED" && (e.ambitionId ? e.ambitionId === p.id : e.taskName && taskNames.has(e.taskName)));
 
-  const later = (id: string) => {
-    setLeaving(id);
-    setTimeout(() => {
-      props.onDefer(id);
-      setLeaving(null);
-    }, 200);
-  };
 
   return (
     <>
       <div
-        className="space-y-14 animate-fade-up transition-[opacity,filter] duration-500"
+        className="space-y-5 animate-fade-up transition-[opacity,filter] duration-500"
         style={{ opacity: resolved ? 0.35 : 1, filter: resolved ? "blur(1px)" : "none" }}
       >
         <div>
-          <button onClick={props.onBack} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" onClick={props.onBack} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft size={14} /> Tillbaka
-          </button>
-          <p className={label + " mt-10"}>Ambitionsöversikt</p>
-          <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
-            Du gör framsteg i din egen takt. Varje litet steg för dig närmare din ambition – i din egen rytm och på dina
-            egna villkor.
-          </p>
+          </Button>
+          <p className={label + " mt-4"}>Ambitionsöversikt</p>
         </div>
 
-        <section className="rounded-2xl border bg-card p-8 shadow-soft sm:p-10">
+        <section className="border-b pb-5">
           {editing ? (
             <div className="space-y-4">
               <input value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-lg border bg-background px-4 py-3 text-xl outline-none focus:ring-2 focus:ring-ring" />
@@ -75,63 +64,57 @@ export default function AmbitionOverview(props: {
                 <input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} className="mt-2 block rounded-lg border bg-background px-4 py-2.5 text-foreground" />
               </label>
               <div className="flex items-center gap-4 pt-2">
-                <button className={btn} onClick={() => { props.onEdit({ title: title.trim() || p.title, deadline: deadline || null }); setEditing(false); }}>Spara</button>
-                <button className="text-sm hover:underline" onClick={() => setEditing(false)}>Avbryt</button>
+                <Button variant="ghost" className={btn} onClick={() => { props.onEdit({ title: title.trim() || p.title, deadline: deadline || null }); setEditing(false); }}>Spara</Button>
+                <Button variant="ghost" className="text-sm hover:underline" onClick={() => setEditing(false)}>Avbryt</Button>
               </div>
             </div>
           ) : (
             <>
               <div className="flex items-start justify-between gap-6">
                 <div>
-                  <h1 className="text-3xl">{p.title}</h1>
+                  <h1 className="text-2xl">{p.title}</h1>
                   <p className="mt-3 text-sm text-muted-foreground">
                     {p.deadline ? `Måldatum: ${new Date(p.deadline + "T12:00:00").toLocaleDateString("sv-SE", { day: "numeric", month: "long", year: "numeric" })}` : "Inget måldatum"}
                     <span className="mx-2">|</span>Aktiv fas: Fas {ai + 1} ({PHASE_NAMES[ai]})
                   </p>
                 </div>
-                <button onClick={() => { setTitle(p.title); setDeadline(p.deadline ?? ""); setEditing(true); }} className={ghost + " inline-flex shrink-0 items-center gap-1.5"}>
+                <Button variant="ghost" onClick={() => { setTitle(p.title); setDeadline(p.deadline ?? ""); setEditing(true); }} className={ghost + " inline-flex shrink-0 items-center gap-1.5"}>
                   <Pencil size={13} /> Redigera
-                </button>
+                </Button>
               </div>
-              <div className="mt-10 h-2 overflow-hidden rounded-full bg-muted">
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
                 <div className="h-full rounded-full bg-primary transition-[width] duration-700" style={{ width: `${progress}%`, transitionTimingFunction: ease }} />
               </div>
               <p className="mt-3 text-sm text-muted-foreground">{progress} % åstadkommit</p>
             </>
           )}
-          <div className="mt-10 flex flex-wrap items-center">
-            <button className={btn} disabled={!steps[0]} onClick={() => steps[0] && props.onFocus(steps[0].id)}>Se nästa steg</button>
-            <span onClick={() => setResolved(true)} className="ml-4 cursor-pointer font-medium text-foreground hover:underline">Avsluta jag är nöjd</span>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Button variant="ghost" className={btn} disabled={!steps[0]} onClick={() => steps[0] && props.onFocus(steps[0].id)}>Se nästa steg</Button>
+            <Button variant="link" onClick={() => setResolved(true)}>Avsluta jag är nöjd</Button>
           </div>
         </section>
 
-        <div className="grid gap-8 md:grid-cols-2">
-          <section className="rounded-2xl border bg-card p-8">
+        <div>
+          <section>
             <h2 className={label}>Nästa steg</h2>
             <p className="mt-1 text-xs text-muted-foreground">Max 2 mikrosteg, under 5 min</p>
-            <div className="mt-6 space-y-4">
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
               {steps.length === 0 && (
                 <p className="text-muted-foreground">{progress === 100 ? "Hela planen är genomförd." : "Inget mer för idag. Vila är också framsteg."}</p>
               )}
-              {steps.map((t, i) => (
-                <div key={t.id} className={`rounded-xl border bg-background p-5 ${i === 0 ? "border-accent" : ""}`}
-                  style={{ transition: `transform 200ms ${ease}, opacity 200ms ${ease}`, transform: leaving === t.id ? "translateY(-12px)" : "none", opacity: leaving === t.id ? 0 : 1 }}>
+              {steps.map((t) => (
+                <div key={t.id} className="rounded-lg border bg-card p-4">
                   <p className="font-medium leading-snug">{t.title}</p>
-                  <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><Clock size={11} /> &lt; 5 min · Fas {ai + 1}</p>
-                  <div className="mt-5 flex flex-col items-start gap-2">
-                    <button className={btn} onClick={() => props.onFocus(t.id)}>Jag vill ta ett mikrosteg!</button>
-                    <button className={ghost} onClick={() => later(t.id)}>Börja senare (skuldfri förskjutning)</button>
-                  </div>
+                  <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground"><Clock size={11} /> &lt; 5 min · Fas {p.phases.findIndex((ph) => ph.tasks.some((task) => task.id === t.id)) + 1}</p>
                 </div>
               ))}
             </div>
           </section>
-          <Notes data={data} project={p} onAdd={props.onAddNote} onRemove={props.onRemoveNote} />
         </div>
 
-        <section className="rounded-2xl border bg-card p-8">
-          <h2 className={label}>Hela planen (4 faser)</h2>
-          <div className="mt-6 space-y-6">
+        <details className="border-y py-4">
+          <summary className={label + " cursor-pointer"}>Hela planen (4 faser)</summary>
+          <div className="mt-4 space-y-4">
             {p.phases.map((ph, i) => {
               const v = pct(ph);
               const status = v === 100 ? "Slutförd" : i === ai ? "Aktiv" : "Planerad";
@@ -157,9 +140,12 @@ export default function AmbitionOverview(props: {
               );
             })}
           </div>
-        </section>
+        </details>
 
-        <HistoryCard data={data} today={today} taskNames={taskNames} />
+        <div className="grid gap-6 md:grid-cols-2">
+          <Notes data={data} project={p} onAdd={props.onAddNote} onRemove={props.onRemoveNote} />
+          <HistoryCard data={data} today={today} taskNames={taskNames} ambitionId={p.id} />
+        </div>
       </div>
 
       {resolved && (
@@ -175,7 +161,7 @@ export default function AmbitionOverview(props: {
             <p className={label + " mt-8"}>Total framdrift:</p>
             <p className="mt-3">{progress} % av hela planen är nu genomförd.</p>
             <hr className="my-8" />
-            <button className={btn} onClick={() => setResolved(false)}>Tillbaka till översikten</button>
+            <Button variant="ghost" className={btn} onClick={() => setResolved(false)}>Tillbaka till översikten</Button>
           </div>
         </div>
       )}
@@ -186,12 +172,12 @@ export default function AmbitionOverview(props: {
 function Notes({ data, project, onAdd, onRemove }: { data: AppData; project: Project; onAdd: (t: string) => void; onRemove: (id: string) => void }) {
   const [text, setText] = useState("");
   const [adding, setAdding] = useState(false);
-  const notes = data.scratchpadBank.filter((n) => n.project === project.title);
+  const notes = data.scratchpadBank.filter((n) => n.ambitionId ? n.ambitionId === project.id : n.project === project.title);
   return (
-    <section className="rounded-2xl border bg-card p-8">
+    <section className="min-w-0">
       <h2 className={label}>Mina anteckningar och idéarkiv</h2>
       <p className="mt-1 text-xs text-muted-foreground">Samlad yta för kontext och tankar</p>
-      <ul className="mt-6 space-y-3 text-sm">
+      <ul className="mt-3 max-h-48 space-y-3 overflow-y-auto text-sm">
         {notes.length === 0 && !adding && <li className="text-muted-foreground">Här samlas dina tankar, länkar och insikter.</li>}
         {notes.map((n) => (
           <li key={n.id} className="group flex gap-3">
@@ -200,7 +186,7 @@ function Notes({ data, project, onAdd, onRemove }: { data: AppData; project: Pro
               <p className="whitespace-pre-wrap break-words">
                 {/^https?:\/\//.test(n.text) ? <a href={n.text} target="_blank" rel="noreferrer" className="underline">{n.text}</a> : n.text}
               </p>
-              <button className="text-xs text-muted-foreground opacity-0 transition-opacity hover:underline group-hover:opacity-100" onClick={() => onRemove(n.id)}>Ta bort</button>
+              <Button variant="ghost" className="text-xs text-muted-foreground opacity-0 transition-opacity hover:underline group-hover:opacity-100" onClick={() => onRemove(n.id)}>Ta bort</Button>
             </div>
           </li>
         ))}
@@ -210,30 +196,30 @@ function Notes({ data, project, onAdd, onRemove }: { data: AppData; project: Pro
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="En tanke, en länk, en insikt..."
             className="mt-4 w-full resize-none rounded-lg border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
           <div className="mt-3 flex items-center gap-4">
-            <button disabled={!text.trim()} className={btn + " text-sm"} onClick={() => { onAdd(text.trim()); setText(""); setAdding(false); }}>Spara</button>
-            <button className="text-sm hover:underline" onClick={() => setAdding(false)}>Avbryt</button>
+            <Button variant="ghost" disabled={!text.trim()} className={btn + " text-sm"} onClick={() => { onAdd(text.trim()); setText(""); setAdding(false); }}>Spara</Button>
+            <Button variant="ghost" className="text-sm hover:underline" onClick={() => setAdding(false)}>Avbryt</Button>
           </div>
         </div>
       </div>
       {!adding && (
-        <button onClick={() => setAdding(true)} className={ghost + " mt-6 inline-flex items-center gap-1.5"}>
+        <Button variant="ghost" onClick={() => setAdding(true)} className={ghost + " mt-6 inline-flex items-center gap-1.5"}>
           <Plus size={14} /> Lägg till ny anteckning/länk
-        </button>
+        </Button>
       )}
     </section>
   );
 }
 
-function HistoryCard({ data, today, taskNames }: { data: AppData; today: string; taskNames: Set<string> }) {
+function HistoryCard({ data, today, taskNames, ambitionId }: { data: AppData; today: string; taskNames: Set<string>; ambitionId: string }) {
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(today, -i)), [today]);
   const dayLabel = (d: string) =>
     d === today ? "Idag" : d === addDays(today, -1) ? "Igår" : new Date(d + "T12:00:00").toLocaleDateString("sv-SE", { day: "numeric", month: "short" });
   return (
-    <section className="rounded-2xl border bg-card p-8">
+    <section className="min-w-0">
       <h2 className={label}>Senast gjort (skamfri historik)</h2>
-      <ul className="mt-6 space-y-3 text-sm">
+      <ul className="mt-3 max-h-48 space-y-3 overflow-y-auto text-sm">
         {days.flatMap((d) => {
-          const items = data.historyLog.filter((e) => e.date === d && e.status === "COMPLETED" && e.taskName && taskNames.has(e.taskName));
+          const items = data.historyLog.filter((e) => e.date === d && e.status === "COMPLETED" && (e.ambitionId ? e.ambitionId === ambitionId : e.taskName && taskNames.has(e.taskName)));
           if (items.length)
             return items.map((x, i) => (
               <li key={d + i} className="flex gap-3">

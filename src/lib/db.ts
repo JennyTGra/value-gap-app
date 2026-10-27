@@ -27,6 +27,8 @@ export type MicroStep = {
   done: 0 | 1;
   doneAt?: string | undefined;
   deferUntil?: string | undefined;
+  started?: boolean | undefined;
+  resumeNote?: string | undefined;
 };
 
 export type Note = { id: string; ambitionId?: string | undefined; project?: string | undefined; text: string; date: string; kind: "note" | "idea"; order?: number | undefined };

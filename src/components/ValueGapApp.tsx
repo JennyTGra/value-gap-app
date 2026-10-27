@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { loadAppData, saveAppData } from "@/lib/dbSync";
 import AmbitionOverview from "@/components/AmbitionOverview";
+import FocusSession from "@/components/FocusSession";
+import { Button } from "@/components/ui/button";
 import {
   ArrowRight, Check, Clock, Feather, Lock, Sun, Moon, Pause, CalendarArrowUp, Leaf,
   Plus, PencilLine, Pencil, RotateCcw, ShieldCheck, X, Play, Coffee, Menu, ArrowUpDown,
@@ -9,7 +11,7 @@ import {
 import {
   type AppData, type AppState, type Project, type Task, type LogEntry,
   emptyData, generatePlan, todaysChoices, shouldTriggerPanic,
-  todayKey, addDays, closeDays, currentPhaseIndex, uid,
+  todayKey, addDays, closeDays, currentPhaseIndex, uid, parkTask, finishTask, addReflection,
 } from "@/lib/valuegap";
 
 const card = "rounded-2xl border bg-card shadow-soft";
@@ -30,6 +32,7 @@ export default function ValueGapApp() {
   const [menuTab, setMenuTab] = useState<Tab | null>(null);
   const [now, setNow] = useState(Date.now());
   const [closed, setClosed] = useState(false);
+  const [loopClosed, setLoopClosed] = useState(false);
   const [overviewId, setOverviewId] = useState<string | null>(null);
   const today = todayKey(new Date(now));
 
@@ -40,6 +43,7 @@ export default function ValueGapApp() {
       const t = todayKey();
       const d = { ...loadedData, historyLog: closeDays(loadedData.historyLog, loadedData.lastOpenDate, t), lastOpenDate: t };
       if (!d.projects.length) d.appState = "INTAKE";
+      if (d.appState === "ACTIVE_FOCUS") d.appState = "GATEWAY";
       setData(d);
       setLoaded(true);
     });
@@ -57,7 +61,7 @@ export default function ValueGapApp() {
   const project = live.find((p) => p.id === data.activeId) ?? live[0];
   const choices = todaysChoices(project, today);
   const allTasks = data.projects.flatMap((p) => p.phases.flatMap((ph) => ph.tasks));
-  const current = allTasks.find((t) => t.id === selected) ?? choices[0] ?? null;
+  const current = allTasks.find((t) => t.id === (selected ?? data.focusTaskId) && !t.done) ?? choices[0] ?? null;
   const currentProject = data.projects.find((p) => p.phases.some((ph) => ph.tasks.some((t) => t.id === current?.id)));
   const overviewProject = data.projects.find((p) => p.id === overviewId);
   const go = (appState: AppState) => setData((d) => ({ ...d, appState }));
@@ -69,19 +73,25 @@ export default function ValueGapApp() {
   const setPaused = (id: string, paused: boolean) =>
     setData((d) => ({ ...d, projects: d.projects.map((p) => (p.id === id ? { ...p, paused } : p)), activeId: paused ? d.activeId : id }));
 
+  const startTask = (id: string, ambitionId: string) => {
+    setOverviewId(null); setSelected(id); setLoopClosed(false);
+    setData((d) => ({ ...d, activeId: ambitionId, focusTaskId: id, appState: "ACTIVE_FOCUS", projects: d.projects.map((p) => p.id === ambitionId ? { ...p, paused: false } : p) }));
+  };
+  const resume = project?.phases.flatMap((ph) => ph.tasks).find((t) => t.started && !t.done);
+  const completionProject = data.projects.find((p) => p.id === data.completionProjectId);
   const complete = () => {
     if (!current) return;
     setData((d) => {
-      let projects = d.projects.map((p) => ({ ...p, phases: p.phases.map((ph) => ({ ...ph, tasks: ph.tasks.map((t) => (t.id === current.id ? { ...t, done: true, doneAt: new Date().toISOString() } : t)) })) }));
+      let projects = d.projects.map((p) => ({ ...p, phases: p.phases.map((ph) => ({ ...ph, tasks: ph.tasks.map((t) => (t.id === current.id ? finishTask(t, new Date().toISOString()) : t)) })) }));
       // When an active project finishes, gently surface the first resting one.
       const justFinished = projects.some((p) => !p.paused && isFinished(p) && d.projects.find((o) => o.id === p.id && !isFinished(o)));
       if (justFinished) {
         const rest = projects.find((p) => p.paused);
         if (rest) projects = projects.map((p) => (p.id === rest.id ? { ...p, paused: false } : p));
       }
-      return { ...d, projects, historyLog: [...d.historyLog, { date: today, status: "COMPLETED", taskName: current.title }], appState: "COMPLETION_REST" };
+      return { ...d, projects, historyLog: [...d.historyLog, { date: today, status: "COMPLETED", taskName: current.title, ambitionId: currentProject?.id }], completionProjectId: currentProject?.id ?? null, focusTaskId: null, appState: "COMPLETION_REST" };
     });
-    setSelected(null);
+    setSelected(null); setLoopClosed(false);
   };
 
   const newAmbition = () => { setMenuOpen(false); shouldTriggerPanic(data.projects) ? setPanic(true) : go("INTAKE"); };
@@ -109,11 +119,15 @@ export default function ValueGapApp() {
 
   return (
     <div className="min-h-screen pb-20">
-      <header className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-6 pt-8">
+      <header className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-6 pt-6">
         <div className="flex min-w-0 items-center gap-2">
           <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-champagne text-accent-foreground"><Feather size={15} /></span>
           <span className="truncate text-xl font-medium">ValueGap</span>
         </div>
+        <nav aria-label="Snabbåtkomst" className="order-3 flex w-full flex-wrap gap-2 sm:order-none sm:w-auto">
+          <Button variant="ghost" size="sm" disabled={!resume && !choices[0]} onClick={() => { const task = resume ?? choices[0]; if (task && project) startTask(task.id, project.id); }}><Play /> Mitt nästa steg</Button>
+          <Button variant="ghost" size="sm" onClick={() => { setMenuTab("archive"); setMenuOpen(true); }}><Lightbulb /> Idé- &amp; Tankearkiv</Button>
+        </nav>
         <div className="flex shrink-0 items-center gap-3">
           <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:inline-flex"><Lock size={12} /> Endast lokalt</span>
           {data.projects.length > 0 && (
@@ -135,15 +149,15 @@ export default function ValueGapApp() {
         </div>
       )}
 
-      <main className="mx-auto max-w-3xl px-6 pt-12">
+      <main className={`mx-auto px-6 ${overviewProject ? "max-w-5xl pt-6" : "max-w-3xl pt-8"}`}>
         {overviewProject && (
           <AmbitionOverview
             data={data} project={overviewProject} today={today}
             onBack={() => setOverviewId(null)}
-            onFocus={(id) => { setOverviewId(null); setSelected(id); setData((d) => ({ ...d, activeId: overviewProject.id, appState: "ACTIVE_FOCUS" })); }}
+            onFocus={(id) => startTask(id, overviewProject.id)}
             onDefer={(id) => updateTasks((t) => (t.id === id ? { ...t, deferUntil: addDays(today, 1) } : t))}
             onEdit={(patch) => setData((d) => ({ ...d, projects: d.projects.map((p) => (p.id === overviewProject.id ? { ...p, ...patch } : p)) }))}
-            onAddNote={(text) => setData((d) => ({ ...d, scratchpadBank: [{ id: uid(), date: today, text, project: overviewProject.title }, ...d.scratchpadBank] }))}
+            onAddNote={(text) => setData((d) => ({ ...d, scratchpadBank: [{ id: uid(), date: today, text, ambitionId: overviewProject.id, project: overviewProject.title }, ...d.scratchpadBank] }))}
             onRemoveNote={(id) => setData((d) => ({ ...d, scratchpadBank: d.scratchpadBank.filter((i) => i.id !== id) }))}
           />
         )}
@@ -152,14 +166,15 @@ export default function ValueGapApp() {
             canCancel={data.projects.length > 0}
             onCancel={() => go("GATEWAY")}
             onIdea={addIdea}
-            onApprove={(p) => setData((d) => ({ ...d, projects: [...d.projects, p], activeId: p.id, appState: "GATEWAY" }))}
+            onApprove={(p, focus) => { const first = p.phases[0]?.tasks[0]; setSelected(focus ? first?.id ?? null : null); setData((d) => ({ ...d, projects: [...d.projects, p], activeId: p.id, focusTaskId: focus ? first?.id ?? null : null, appState: focus ? "ACTIVE_FOCUS" : "GATEWAY" })); }}
           />
         )}
         {!overviewProject && data.appState === "GATEWAY" && (
           <Gateway
             data={data} project={project} live={live} choices={choices} selected={current?.id ?? null} setSelected={setSelected}
             today={today} now={now}
-            onStart={() => go("ACTIVE_FOCUS")}
+            onStart={(id) => { if (project) startTask(id, project.id); }}
+            resume={resume}
             onSnooze={() => setData((d) => ({ ...d, snoozeUntil: Date.now() + 30 * 60000 }))}
             onWake={() => setData((d) => ({ ...d, snoozeUntil: null }))}
             onDefer={(days) => {
@@ -175,23 +190,26 @@ export default function ValueGapApp() {
           />
         )}
         {!overviewProject && data.appState === "ACTIVE_FOCUS" && current && (
-          <Focus
+          <FocusSession key={current.id}
             task={current} projectTitle={currentProject?.title ?? ""} scratch={data.scratchpad}
             setScratch={(s) => setData((d) => ({ ...d, scratchpad: s }))}
             onSave={() => setData((d) => d.scratchpad.trim() ? ({
               ...d, scratchpad: "",
-              scratchpadBank: [{ id: uid(), date: today, text: d.scratchpad.trim(), project: currentProject?.title }, ...d.scratchpadBank],
+              scratchpadBank: [{ id: uid(), date: today, text: d.scratchpad.trim(), project: currentProject?.title, ambitionId: currentProject?.id }, ...d.scratchpadBank],
             }) : d)}
             onComplete={complete} onBack={() => go("GATEWAY")}
+            onPark={(note) => { updateTasks((t) => t.id === current.id ? parkTask(t, note) : t); setSelected(null); setData((d) => ({ ...d, focusTaskId: null, appState: "GATEWAY" })); }}
           />
         )}
         {!overviewProject && data.appState === "ACTIVE_FOCUS" && !current && (
           <p className="text-center text-muted-foreground">Inget steg är valt just nu.</p>
         )}
         {!overviewProject && data.appState === "COMPLETION_REST" && (
-          <Completion data={data} today={today} onNext={() => go("GATEWAY")} />
+          <Completion data={data} today={today} project={completionProject} onReflect={(text) => setData((d) => addReflection(d, d.completionProjectId, text, today))} onClose={() => setLoopClosed(true)} onNext={() => { const task = todaysChoices(completionProject, today)[0]; if (task && completionProject) startTask(task.id, completionProject.id); }} />
         )}
       </main>
+
+      {loopClosed && <div className="fixed inset-0 z-50 grid place-items-center bg-background/70 p-6 backdrop-blur-sm"><div role="dialog" aria-modal="true" aria-label="Loopen är stängd" className="w-full max-w-lg rounded-lg border bg-card p-8 shadow-soft"><p className={eyebrow}>Loopen är stängd</p><h2 className="mt-4 text-2xl">Bra jobbat idag!</h2><ul className="my-5 space-y-2">{data.historyLog.filter((e) => e.date === today && e.status === "COMPLETED" && e.ambitionId === completionProject?.id).map((e, i) => <li key={i} className="flex gap-2"><Check size={16} />{e.taskName}</li>)}</ul><div className="flex flex-wrap gap-3"><Button variant="outline" onClick={() => { setLoopClosed(false); setOverviewId(completionProject?.id ?? null); }}>Tillbaka till översikten</Button><Button onClick={() => { setLoopClosed(false); go("GATEWAY"); setClosed(true); }}>Låt skärmen vila</Button></div></div></div>}
 
       {menuOpen && (
         <SideMenu
@@ -225,7 +243,7 @@ export default function ValueGapApp() {
 }
 
 /* ---------------- Screen 1: Intake ---------------- */
-function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Project) => void; canCancel: boolean; onCancel: () => void; onIdea: (t: string) => void }) {
+function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Project, focus: boolean) => void; canCancel: boolean; onCancel: () => void; onIdea: (t: string) => void }) {
   const [step, setStep] = useState<"dump" | "q" | "context" | "plan">("dump");
   const [dump, setDump] = useState("");
   const [drive, setDrive] = useState<number | null>(null);
@@ -248,7 +266,7 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
     "Tidsbrist|Svårt att hålla uppe tempot vid sidan om",
     "Osäkerhet / Dåligt självförtroende|Tvekan kring om det håller",
   ];
-  const plain = (s: string) => s.split("|")[0]!;
+  const plain = (s: string) => s.split("|")[0] ?? "";
 
   if (step === "dump") {
     return (
@@ -317,9 +335,9 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
           <button className="text-sm text-muted-foreground" onClick={() => setStep("q")}>Tillbaka</button>
           <button className={btnPrimary} disabled={!micro.trim()} onClick={() => {
             const p = generatePlan(dump, 0, 1, pitfall === 0);
-            const phases = p.phases.map((ph, i) => i === 0 ? { ...ph, tasks: [{ ...ph.tasks[0]!, title: micro.trim() }, ...ph.tasks.slice(1)] } : ph);
+            const phases = p.phases.map((ph, i) => i === 0 && ph.tasks[0] ? { ...ph, tasks: [{ ...ph.tasks[0], title: micro.trim() }, ...ph.tasks.slice(1)] } : ph);
             setPlan({ ...p, phases, deadline: deadline || null,
-              context: `Drivkraft: ${plain(DRIVES[drive!]!)} · Prioritet: ${priority}/10 · Fallgrop: ${plain(PITFALLS[pitfall!]!)}` });
+              context: `Drivkraft: ${plain(DRIVES[drive ?? 0] ?? "")} · Prioritet: ${priority}/10 · Fallgrop: ${plain(PITFALLS[pitfall ?? 0] ?? "")}` });
             setStep("plan");
           }}>Skapa din plan & Se nästa steg <ArrowRight size={16} /></button>
         </div>
@@ -328,7 +346,8 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
   }
 
   if (!plan) return null;
-  const first = plan.phases[0]!.tasks[0]!;
+  const first = plan.phases[0]?.tasks[0];
+  if (!first) return null;
   const rename = (id: string, title: string) =>
     setPlan({ ...plan, phases: plan.phases.map((ph) => ({ ...ph, tasks: ph.tasks.map((t) => (t.id === id ? { ...t, title } : t)) })) });
 
@@ -349,7 +368,8 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
       <p className="mt-2 text-sm text-muted-foreground">
         {plan.budget}{plan.deadline ? ` · Deadline ${fmtDate(plan.deadline)}` : " · Ingen fast deadline"}
       </p>
-      <ol className="mt-10 grid gap-4 sm:grid-cols-2">
+      <p className="mt-6 border-y py-3 text-sm text-muted-foreground">Planen är ett utkast – du kan justera eller byta ut alla steg när du vill</p>
+      <ol className="mt-6 grid gap-4 sm:grid-cols-2">
         {plan.phases.map((ph, pi) => (
           <li key={ph.id} className={`${card} p-6 ${pi === 0 ? "sm:col-span-2" : ""}`}>
             <div className="flex items-center gap-3">
@@ -385,7 +405,7 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
       </ol>
       <div className="mt-10 flex flex-wrap justify-between gap-3">
         <button className={btnGhost} onClick={() => setStep("q")}>Justera val</button>
-        <button className={btnPrimary} onClick={() => onApprove(plan)}>Börja med den här planen <Check size={16} /></button>
+        <div className="flex flex-wrap items-center gap-3"><Button variant="ghost" onClick={() => onApprove(plan, false)}>Spara och börja senare</Button><Button className="h-auto whitespace-normal px-6 py-3" onClick={() => onApprove(plan, true)}>Ta första steget nu (5 min) <ArrowRight size={16} /></Button></div>
       </div>
     </section>
   );
@@ -413,7 +433,7 @@ function Choice({ label, options, value, onChange }: { label: string; options: s
 /* ---------------- Screen 2: Morgonvyn ---------------- */
 function Gateway(props: {
   data: AppData; project: Project | undefined; live: Project[]; choices: Task[]; selected: string | null; setSelected: (id: string) => void;
-  today: string; now: number; onStart: () => void; onSnooze: () => void; onWake: () => void; onDefer: (days: number) => void;
+  today: string; now: number; onStart: (id: string) => void; resume?: Task | undefined; onSnooze: () => void; onWake: () => void; onDefer: (days: number) => void;
   onRecovery: () => void; onSwitch: (id: string) => void; onNew: () => void;
   onRename: (id: string, title: string) => void; onOverview: () => void;
 }) {
@@ -439,11 +459,13 @@ function Gateway(props: {
   return (
     <section className="animate-fade-up">
       <Sun size={20} className="text-sand-deep" />
-      <h1 className="mt-4 max-w-2xl text-2xl leading-snug sm:text-3xl">God morgon. Ditt sinne är lugnt. Här är dagens enda riktning:</h1>
+      <h1 className="mt-4 max-w-2xl text-2xl leading-snug sm:text-3xl">Dina nästa steg</h1>
       <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
         <span>{project.title} · Fas {Math.min(currentPhaseIndex(project) + 1, 4)} av 4</span>
         <button className="inline-flex items-center gap-1 underline underline-offset-4 hover:text-foreground" onClick={props.onOverview}><Target size={12} /> Ambitionsöversikt</button>
       </p>
+
+      {props.resume && <div className="mt-5 border-l-2 border-accent pl-4"><p className={eyebrow}>Påbörjat · {props.resume.title}</p><p className="mt-2 text-sm">Här var du: {props.resume.resumeNote || "Du påbörjade det här steget."} – Vill du fortsätta?</p><Button className="mt-3" onClick={() => props.resume && props.onStart(props.resume.id)}>Fortsätt steget <Play size={14} /></Button></div>}
 
       {restedToday ? (
         <div className={`${card} mt-10 p-8 text-center`}>
@@ -458,7 +480,7 @@ function Gateway(props: {
         </div>
       ) : (
         <>
-          <div className={`mt-10 grid gap-4 sm:grid-cols-2 transition-opacity duration-700 ${snoozed ? "opacity-50" : ""}`}>
+          <div className={`mt-6 grid gap-4 sm:grid-cols-2 transition-opacity duration-700 ${snoozed ? "opacity-50" : ""}`}>
             {ordered.map((t) => {
               const on = selected === t.id;
               if (editing === t.id) {
@@ -472,7 +494,7 @@ function Gateway(props: {
                 );
               }
               return (
-                <div key={t.id} role="button" tabIndex={0} onClick={() => setSelected(t.id)} onKeyDown={(e) => e.key === "Enter" && setSelected(t.id)}
+                <div key={t.id}
                   className={`${card} cursor-pointer p-6 text-left transition ${on ? "border-sand-deep ring-2 ring-accent" : "hover:-translate-y-0.5"}`}>
                   <div className="flex items-center justify-between">
                     <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2.5 py-0.5 text-xs text-muted-foreground"><Clock size={11} />&lt; 5 min</span>
@@ -481,7 +503,9 @@ function Gateway(props: {
                       <span className={`grid h-5 w-5 place-items-center rounded-full border ${on ? "border-primary bg-primary text-primary-foreground" : ""}`}>{on && <Check size={12} />}</span>
                     </span>
                   </div>
-                  <p className="mt-4 text-xl leading-snug">{t.title}</p>
+                  <p className="mt-4 min-h-14 text-xl leading-snug">{t.title}</p>
+                  <Button className="mt-5 h-auto w-full whitespace-normal py-3" onClick={() => props.onStart(t.id)}>Jag vill ta ett mikrosteg! <ArrowRight size={14} /></Button>
+                  <Button variant="link" className="mt-1 h-auto w-full whitespace-normal text-xs text-muted-foreground" onClick={() => { setSelected(t.id); setMenu(!menu); }}>Börja senare (skuldfri förskjutning)</Button>
                 </div>
               );
             })}
@@ -495,29 +519,20 @@ function Gateway(props: {
           {snoozed ? (
             <div className="mt-10 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
               <span className="h-2 w-2 animate-pulse rounded-full bg-sand-deep" />
-              Vilar i bakgrunden till {new Date(data.snoozeUntil!).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}.
+              Vilar i bakgrunden till {new Date(data.snoozeUntil ?? now).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" })}.
               <button className="underline underline-offset-4" onClick={props.onWake}>Jag är redo nu</button>
             </div>
           ) : (
-            <div className="mt-10 grid gap-6 sm:grid-cols-[auto_1fr] sm:items-start">
-              <div>
-                <button className={btnPrimary} disabled={!selected} onClick={props.onStart}>Ta ett första steg <ArrowRight size={16} /></button>
-                <p className="mt-2 max-w-xs text-xs text-muted-foreground">Ett djupt, ostört fokusblock.</p>
-              </div>
-              <div>
-                <button className={btnGhost} onClick={() => setMenu(!menu)}>Börja när du vill</button>
+            <div>
                 {menu && (
                   <div className={`${card} animate-fade-up mt-3 grid max-w-sm gap-1 p-2`}>
                     <MenuItem icon={<Pause size={15} />} label="+30 minuters lugn vila" onClick={() => { setMenu(false); props.onSnooze(); }} />
                     <MenuItem icon={<CalendarArrowUp size={15} />} label="Flytta varsamt till imorgon" onClick={() => { setMenu(false); props.onDefer(1); }} />
                     <MenuItem icon={<CalendarArrowUp size={15} />} label="Flytta till nästa vecka" onClick={() => { setMenu(false); props.onDefer(7); }} />
                     <MenuItem icon={<Leaf size={15} />} label="Markera som planerad återhämtning" onClick={() => { setMenu(false); props.onRecovery(); }} />
-                    {others.map((p) => (
-                      <MenuItem key={p.id} icon={<Shuffle size={15} />} label={`Byt till: ${p.title}`} onClick={() => { setMenu(false); props.onSwitch(p.id); }} />
-                    ))}
+                    {others.map((p) => <MenuItem key={p.id} icon={<Shuffle size={15} />} label={`Byt till: ${p.title}`} onClick={() => { setMenu(false); props.onSwitch(p.id); }} />)}
                   </div>
                 )}
-              </div>
             </div>
           )}
         </>
@@ -531,55 +546,6 @@ function MenuItem({ icon, label, onClick }: { icon: React.ReactNode; label: stri
     <button onClick={onClick} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-secondary">
       <span className="shrink-0 text-sand-deep">{icon}</span><span className="min-w-0 truncate">{label}</span>
     </button>
-  );
-}
-
-/* ---------------- Screen 3: Fokus ---------------- */
-function Focus({ task, projectTitle, scratch, setScratch, onSave, onComplete, onBack }: {
-  task: Task; projectTitle: string; scratch: string; setScratch: (s: string) => void; onSave: () => void; onComplete: () => void; onBack: () => void;
-}) {
-  const [length, setLength] = useState(25);
-  const [left, setLeft] = useState(25 * 60);
-  const [saved, setSaved] = useState(false);
-  useEffect(() => { setLeft(length * 60); }, [length]);
-  useEffect(() => { const i = setInterval(() => setLeft((l) => Math.max(0, l - 1)), 1000); return () => clearInterval(i); }, []);
-  useEffect(() => { if (!saved) return; const t = setTimeout(() => setSaved(false), 2200); return () => clearTimeout(t); }, [saved]);
-  const mm = String(Math.floor(left / 60)).padStart(2, "0");
-  const ss = String(left % 60).padStart(2, "0");
-
-  return (
-    <section className="animate-fade-up mx-auto max-w-2xl">
-      <p className={eyebrow + " text-center"}>{projectTitle}</p>
-      <h1 className="mt-6 text-center text-4xl leading-tight sm:text-5xl">{task.title}</h1>
-      <div className="mt-10 flex flex-col items-center gap-3">
-        <span className="text-2xl font-light tabular-nums text-muted-foreground">{mm}:{ss}</span>
-        <div className="flex gap-1 text-xs">
-          {[15, 25, 45].map((m) => (
-            <button key={m} onClick={() => setLength(m)}
-              className={`rounded-full px-3 py-1 transition ${length === m ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary"}`}>{m} min</button>
-          ))}
-        </div>
-      </div>
-      <div className={`${card} mt-12`}>
-        <div className="flex items-center justify-between gap-2 border-b px-5 py-2.5 text-xs text-muted-foreground">
-          <span className="flex items-center gap-2"><PencilLine size={13} /> Tankeskiss</span>
-          <span className="flex items-center gap-3">
-            {saved && <span className="animate-fade-up">Sparad i arkivet</span>}
-            <button disabled={!scratch.trim()} onClick={() => { onSave(); setSaved(true); }}
-              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium uppercase tracking-widest text-foreground hover:bg-secondary disabled:opacity-40">
-              <Save size={12} /> Spara
-            </button>
-          </span>
-        </div>
-        <textarea value={scratch} onChange={(e) => setScratch(e.target.value)} rows={6}
-          placeholder="Fånga sidotankar och idéer här så att du slipper byta flik."
-          className="w-full resize-none bg-transparent px-5 py-4 text-sm leading-relaxed outline-none" />
-      </div>
-      <div className="mt-10 flex flex-wrap justify-center gap-3">
-        <button className={btnGhost} onClick={onBack}>Tillbaka</button>
-        <button className={btnPrimary} onClick={onComplete}><Check size={16} /> Slutför steget</button>
-      </div>
-    </section>
   );
 }
 
@@ -637,7 +603,11 @@ function RangeToggle({ range, setRange }: { range: 7 | 30; setRange: (r: 7 | 30)
 }
 
 /* ---------------- Screen 4: Avslut ---------------- */
-function Completion({ data, today, onNext }: { data: AppData; today: string; onNext: () => void }) {
+function Completion({ data, today, project, onNext, onReflect, onClose }: { data: AppData; today: string; project: Project | undefined; onNext: () => void; onReflect: (text: string) => void; onClose: () => void }) {
+  const [reflection, setReflection] = useState("");
+  const [saved, setSaved] = useState(false);
+  const save = () => { if (reflection.trim()) { onReflect(reflection); setReflection(""); setSaved(true); } };
+  const next = todaysChoices(project, today)[0];
   const [range, setRange] = useState<7 | 30>(7);
   const started = data.projects.filter((p) => p.phases.some((ph) => ph.tasks.some((t) => t.done))).length;
 
@@ -646,9 +616,15 @@ function Completion({ data, today, onNext }: { data: AppData; today: string; onN
       <div className="text-center">
         <div className="mx-auto h-20 w-20 rounded-full bg-champagne animate-ring" />
         <h1 className="mx-auto mt-10 max-w-lg text-3xl leading-snug sm:text-4xl">Bra gjort! Ett första steg framåt</h1>
-        <button className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium underline underline-offset-4 hover:text-muted-foreground" onClick={onNext}>
-          Se nästa steg <ArrowRight size={14} />
-        </button>
+        <div className="mx-auto mt-8 max-w-lg text-left">
+          <label htmlFor="reflection" className="text-sm font-medium">Lärde du dig något eller fick du ny inspiration?</label>
+          <textarea id="reflection" value={reflection} onChange={(e) => { setReflection(e.target.value); setSaved(false); }} rows={3} placeholder="Valfritt…" className="mt-3 w-full rounded-lg border bg-card p-4 outline-none focus:ring-2 focus:ring-ring" />
+          <div className="mt-2 flex items-center justify-between gap-3"><span role="status" className="text-xs text-muted-foreground">{saved ? "Sparat till ambitionens anteckningar" : project?.title}</span><Button variant="ghost" size="sm" disabled={!reflection.trim()} onClick={save}><Save /> Spara</Button></div>
+        </div>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Button disabled={!next} onClick={() => { save(); onNext(); }}>Ta nästa steg <ArrowRight size={14} /></Button>
+          <Button variant="outline" className="h-auto whitespace-normal py-2" onClick={() => { save(); onClose(); }}>Stäng loopen – bra jobbat idag!</Button>
+        </div>
       </div>
 
       <div className={`${card} mt-14 p-6`}>
