@@ -3,6 +3,9 @@ import { loadAppData, saveAppData } from "@/lib/dbSync";
 import AmbitionOverview from "@/components/AmbitionOverview";
 import FocusSession from "@/components/FocusSession";
 import { Button } from "@/components/ui/button";
+import AiKeySettings from "@/components/AiKeySettings";
+import { generatePlanWithOpenAI, PlanError } from "@/lib/openaiPlan";
+import { Loader2 } from "lucide-react";
 import {
   ArrowRight, Check, Clock, Feather, Lock, Sun, Moon, Pause, CalendarArrowUp, Leaf,
   Plus, PencilLine, Pencil, RotateCcw, ShieldCheck, X, Play, Coffee, Menu, ArrowUpDown,
@@ -230,6 +233,7 @@ export default function ValueGapApp() {
         />
       )}
 
+      <AiKeySettings />
       {panic && (
         <PanicModal
           projects={live}
@@ -253,7 +257,34 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
   const [deadline, setDeadline] = useState("");
   const [plan, setPlan] = useState<Project | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
   void onIdea;
+  const build = async (useAi: boolean) => {
+    const context = `Drivkraft: ${plain(DRIVES[drive ?? 0] ?? "")} · Prioritet: ${priority}/10 · Fallgrop: ${plain(PITFALLS[pitfall ?? 0] ?? "")}`;
+    const base = generatePlan(dump, 0, 1, pitfall === 0);
+    let phases = base.phases;
+    let title = base.title;
+    setAiError("");
+    if (useAi) {
+      setAiLoading(true);
+      try {
+        const r = await generatePlanWithOpenAI(`Hjärndump:\n${dump}\n\n${context}\nMitt eget första mikrosteg: ${micro.trim()}${deadline ? `\nMåldatum: ${deadline}` : ""}`);
+        phases = r.phases; if (r.title) title = r.title;
+      } catch (e) {
+        const k = e instanceof PlanError ? e.kind : "network";
+        setAiError(k === "missing_key" ? "Ingen AI-nyckel är sparad. Lägg in den via kugghjulet nere till vänster."
+          : k === "invalid_key" ? "AI-nyckeln verkar vara ogiltig. Kontrollera den via kugghjulet nere till vänster."
+          : (e as Error).message || "Något gick fel med AI-anropet.");
+        setAiLoading(false);
+        return;
+      }
+      setAiLoading(false);
+    }
+    phases = phases.map((ph, i) => i === 0 && ph.tasks[0] ? { ...ph, tasks: [{ ...ph.tasks[0], title: micro.trim(), minutes: 5 }, ...ph.tasks.slice(1)] } : ph);
+    setPlan({ ...base, title, phases, deadline: deadline || null, context });
+    setStep("plan");
+  };
   const DRIVES = [
     "Lösa egen frustration|Bygga verktyget som saknas",
     "Skapa en tillgång|Bygga något som ger värde/intäkter",
@@ -333,14 +364,16 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
           className="mt-2 rounded-xl border bg-card px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
         <div className="mt-10 flex items-center justify-between gap-4">
           <button className="text-sm text-muted-foreground" onClick={() => setStep("q")}>Tillbaka</button>
-          <button className={btnPrimary} disabled={!micro.trim()} onClick={() => {
-            const p = generatePlan(dump, 0, 1, pitfall === 0);
-            const phases = p.phases.map((ph, i) => i === 0 && ph.tasks[0] ? { ...ph, tasks: [{ ...ph.tasks[0], title: micro.trim() }, ...ph.tasks.slice(1)] } : ph);
-            setPlan({ ...p, phases, deadline: deadline || null,
-              context: `Drivkraft: ${plain(DRIVES[drive ?? 0] ?? "")} · Prioritet: ${priority}/10 · Fallgrop: ${plain(PITFALLS[pitfall ?? 0] ?? "")}` });
-            setStep("plan");
-          }}>Skapa din plan & Se nästa steg <ArrowRight size={16} /></button>
+          <button className={btnPrimary} disabled={!micro.trim() || aiLoading} onClick={() => build(true)}>
+            {aiLoading ? <><Loader2 size={16} className="animate-spin" /> Bryter ner din ambition i 4 lugna faser…</> : <>Skapa din plan & Se nästa steg <ArrowRight size={16} /></>}
+          </button>
         </div>
+        {aiError && (
+          <div role="alert" className={`${card} mt-6 p-5 text-sm`}>
+            <p>{aiError}</p>
+            <button className="mt-3 text-sm underline" onClick={() => build(false)}>Använd den inbyggda mallen istället</button>
+          </div>
+        )}
       </section>
     );
   }
