@@ -14,7 +14,7 @@ export class PlanError extends Error {
 }
 
 /** Parses the model's JSON into exactly 4 phases. Throws PlanError on bad shape. */
-export function parsePlanJson(raw: string): { title?: string; phases: Phase[] } {
+export function parsePlanJson(raw: string): { title?: string | undefined; phases: Phase[] } {
   let j: unknown;
   try { j = JSON.parse(raw); } catch { throw new PlanError("bad_response", "Svaret var inte giltig JSON."); }
   const o = j as { title?: unknown; phases?: unknown };
@@ -34,7 +34,7 @@ export function parsePlanJson(raw: string): { title?: string; phases: Phase[] } 
   return { title: typeof o.title === "string" ? o.title : undefined, phases };
 }
 
-export async function generatePlanWithOpenAI(userText: string): Promise<{ title?: string; phases: Phase[] }> {
+export async function generatePlanWithOpenAI(userText: string): Promise<{ title?: string | undefined; phases: Phase[] }> {
   const key = getOpenAIKey();
   if (!key) throw new PlanError("missing_key", "Ingen API-nyckel är sparad.");
   let res: Response;
