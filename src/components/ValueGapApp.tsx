@@ -233,6 +233,7 @@ export default function ValueGapApp() {
         />
       )}
 
+      <AiKeySettings />
       {panic && (
         <PanicModal
           projects={live}
