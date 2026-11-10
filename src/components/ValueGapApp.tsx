@@ -402,7 +402,7 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
 
   if (step === "context") {
     return (
-      <section className="animate-fade-up mx-auto max-2xl mx-auto max-w-2xl">
+      <section className="animate-fade-up mx-auto max-w-2xl">
         <p className={eyebrow}>Steg 4 av 4 · Första mikrosteget</p>
         <h1 className="mt-3 text-3xl">Skriv ett första mikrosteg (&lt; 5 min) för att skapa omedelbart momentum</h1>
         <input autoFocus value={micro} onChange={(e) => setMicro(e.target.value)} placeholder="t.ex. Skriv en rå rubrik i utkastet"
