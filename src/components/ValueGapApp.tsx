@@ -302,6 +302,19 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
     "Tidsbrist|Svårt att hålla uppe tempot vid sidan om",
     "Osäkerhet / Dåligt självförtroende|Tvekan kring om det håller",
   ];
+  const DOMAINS = [
+    "Jobb|Något inom ditt yrke eller anställning",
+    "Eget företag|Något du bygger eller driver själv",
+    "Sidoprojekt|En idé vid sidan av jobb eller studier",
+    "Studier|Kurs, examensarbete eller eget lärande",
+    "Gemenskap|Förening, ideellt eller något tillsammans med andra",
+    "Annat|Beskriv själv vad det handlar om",
+  ];
+  const BANDWIDTH = [
+    "En kort stund|< 15 minuter om dagen räcker långt",
+    "En halvtimme|Cirka 30 minuter av fokus per dag",
+    "En timme eller mer|Jag har gott om utrymme just nu",
+  ];
   const plain = (s: string) => s.split("|")[0] ?? "";
 
   if (step === "dump") {
