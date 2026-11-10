@@ -393,7 +393,7 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
         </fieldset>
         <Choice label="Vad brukar stanna av dina byggen innan mållinjen?" options={PITFALLS} value={pitfall} onChange={setPitfall} />
         <div className="mt-10 flex items-center justify-between">
-          <button className="text-sm text-muted-foreground" onClick={() => setStep("dump")}>Tillbaka</button>
+          <button className="text-sm text-muted-foreground" onClick={() => setStep("domain")}>Tillbaka</button>
           <button className={btnPrimary} disabled={!ready} onClick={() => setStep("context")}>Vidare <ArrowRight size={16} /></button>
         </div>
       </section>
@@ -402,8 +402,8 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
 
   if (step === "context") {
     return (
-      <section className="animate-fade-up mx-auto max-w-2xl">
-        <p className={eyebrow}>Steg 3 av 3 · Första mikrosteget</p>
+      <section className="animate-fade-up mx-auto max-2xl mx-auto max-w-2xl">
+        <p className={eyebrow}>Steg 4 av 4 · Första mikrosteget</p>
         <h1 className="mt-3 text-3xl">Skriv ett första mikrosteg (&lt; 5 min) för att skapa omedelbart momentum</h1>
         <input autoFocus value={micro} onChange={(e) => setMicro(e.target.value)} placeholder="t.ex. Skriv en rå rubrik i utkastet"
           className={`${card} mt-6 w-full p-5 text-base outline-none focus:ring-2 focus:ring-ring`} />
