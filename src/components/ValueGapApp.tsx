@@ -320,7 +320,7 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
   if (step === "dump") {
     return (
       <section className="animate-fade-up mx-auto max-w-2xl">
-        <p className={eyebrow}>Steg 1 av 3 · Projekt & ambition</p>
+        <p className={eyebrow}>Steg 1 av 4 · Projekt & ambition</p>
         <h1 className="mt-3 text-3xl sm:text-4xl">Skapa din plan</h1>
         <p className="mt-6 text-lg font-medium">Vad för projekt vill du skapa eller färdigställa?</p>
         <textarea
@@ -330,9 +330,39 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
         />
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
           {canCancel ? <button className="text-sm text-muted-foreground" onClick={onCancel}>Avbryt</button> : <span />}
-          <button className={btnPrimary} disabled={dump.trim().length < 3} onClick={() => setStep("q")}>
+          <button className={btnPrimary} disabled={dump.trim().length < 3} onClick={() => setStep("domain")}>
             Vidare <ArrowRight size={16} />
           </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (step === "domain") {
+    const isOther = domain === DOMAINS.length - 1;
+    const ready = domain !== null && (!isOther || domainCustom.trim().length > 0) && bandwidth !== null;
+    return (
+      <section className={`${card} animate-fade-up mx-auto max-w-xl p-8 sm:p-10`}>
+        <p className={eyebrow}>Steg 2 av 4 · Din vardag</p>
+        <Choice label="Vilket livsområde hör projektet till?" options={DOMAINS} value={domain} onChange={setDomain} />
+        {isOther && (
+          <input autoFocus value={domainCustom} onChange={(e) => setDomainCustom(e.target.value)} placeholder="t.ex. Renovering, hälsa, flytt"
+            aria-label="Beskriv livsområdet"
+            className="mt-3 w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+        )}
+        <fieldset className="mt-8">
+          <legend className="text-lg font-medium">Var befinner du dig idag?</legend>
+          <p className="mt-1 text-sm text-muted-foreground">En mening räcker – t.ex. "bara en idé än så länge" eller "halvvägs men fast".</p>
+          <input value={currentState} onChange={(e) => setCurrentState(e.target.value)} placeholder="t.ex. Har ett utkast som legat i tre månader"
+            aria-label="Nuläge"
+            className="mt-3 w-full rounded-xl border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-ring" />
+        </fieldset>
+        <div className="mt-8">
+          <Choice label="Hur mycket fokusenergi har du per dag just nu?" options={BANDWIDTH} value={bandwidth} onChange={setBandwidth} />
+        </div>
+        <div className="mt-10 flex items-center justify-between">
+          <button className="text-sm text-muted-foreground" onClick={() => setStep("dump")}>Tillbaka</button>
+          <button className={btnPrimary} disabled={!ready} onClick={() => setStep("q")}>Vidare <ArrowRight size={16} /></button>
         </div>
       </section>
     );
@@ -342,7 +372,7 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
     const ready = drive !== null && priority !== null && pitfall !== null;
     return (
       <section className={`${card} animate-fade-up mx-auto max-w-xl p-8 sm:p-10`}>
-        <p className={eyebrow}>Steg 2 av 3 · Tre frågor</p>
+        <p className={eyebrow}>Steg 3 av 4 · Tre frågor</p>
         <Choice label="Varför måste det här projektet existera i världen?" options={DRIVES} value={drive} onChange={setDrive} />
         <fieldset className="mt-8">
           <legend className="text-lg font-medium">Hur viktigt är det att påbörja eller bli klar med det här projektet?</legend>
