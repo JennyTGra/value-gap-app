@@ -248,8 +248,12 @@ export default function ValueGapApp() {
 
 /* ---------------- Screen 1: Intake ---------------- */
 function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Project, focus: boolean) => void; canCancel: boolean; onCancel: () => void; onIdea: (t: string) => void }) {
-  const [step, setStep] = useState<"dump" | "q" | "context" | "plan">("dump");
+  const [step, setStep] = useState<"dump" | "domain" | "q" | "context" | "plan">("dump");
   const [dump, setDump] = useState("");
+  const [domain, setDomain] = useState<number | null>(null);
+  const [domainCustom, setDomainCustom] = useState("");
+  const [currentState, setCurrentState] = useState("");
+  const [bandwidth, setBandwidth] = useState<number | null>(null);
   const [drive, setDrive] = useState<number | null>(null);
   const [priority, setPriority] = useState<number | null>(null);
   const [pitfall, setPitfall] = useState<number | null>(null);
@@ -261,7 +265,8 @@ function Intake({ onApprove, canCancel, onCancel, onIdea }: { onApprove: (p: Pro
   const [aiError, setAiError] = useState("");
   void onIdea;
   const build = async (useAi: boolean) => {
-    const context = `Drivkraft: ${plain(DRIVES[drive ?? 0] ?? "")} · Prioritet: ${priority}/10 · Fallgrop: ${plain(PITFALLS[pitfall ?? 0] ?? "")}`;
+    const domainLabel = domain === DOMAINS.length - 1 && domainCustom.trim() ? `Annat (${domainCustom.trim()})` : plain(DOMAINS[domain ?? 0] ?? "");
+    const context = `Livsområde: ${domainLabel} · Nuläge: ${currentState.trim() || "okänt"} · Daglig energi: ${plain(BANDWIDTH[bandwidth ?? 0] ?? "")} · Drivkraft: ${plain(DRIVES[drive ?? 0] ?? "")} · Prioritet: ${priority}/10 · Fallgrop: ${plain(PITFALLS[pitfall ?? 0] ?? "")}`;
     const base = generatePlan(dump, 0, 1, pitfall === 0);
     let phases = base.phases;
     let title = base.title;
